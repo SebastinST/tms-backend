@@ -16,15 +16,12 @@ exports.isAuthenticatedUser = catchAsyncErrors(async (req, res, next) => {
   }
 
   const decoded = jwt.verify(token, process.env.JWT_SECRET)
-  connection.query("SELECT * FROM user WHERE username = ?", [decoded.username], async (error, result) => {
-    req.user = result[0]
+  const [row, fields] = await connection.promise().query("SELECT * FROM user WHERE username = ?", [decoded.username])
+  req.user = row[0]
 
-    if (req.user.is_disabled === 1) {
-      return next(new ErrorResponse("User is disabled", 401))
-    }
-
-    next()
-  })
+  if (req.user.is_disabled === 1) {
+    return next(new ErrorHandler("User is disabled", 401))
+  }
 })
 
 // handling users roles

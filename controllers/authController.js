@@ -3,7 +3,7 @@ const catchAsyncErrors = require("../middleware/catchAsyncErrors")
 const ErrorResponse = require("../utils/errorHandler")
 const jwt = require("jsonwebtoken")
 
-// Login a user => /api/v1/login
+// Login a user => /login
 exports.loginUser = catchAsyncErrors(async (req, res, next) => {
   const { username, password } = req.body
 
@@ -30,7 +30,7 @@ exports.loginUser = catchAsyncErrors(async (req, res, next) => {
   sendToken(user, 200, res)
 })
 
-// Logout a user => /api/v1/logout
+// Logout a user => /_logout
 exports.logout = catchAsyncErrors(async (req, res, next) => {
   res.cookie("token", null, {
     expires: new Date(Date.now()),
@@ -43,7 +43,7 @@ exports.logout = catchAsyncErrors(async (req, res, next) => {
   })
 })
 
-// Create a user => /api/v1/register
+// Create a user => /register
 exports.registerUser = catchAsyncErrors(async (req, res, next) => {
   const { username, email, password, group } = req.body
 
