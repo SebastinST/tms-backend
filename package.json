@@ -1,0 +1,14 @@
+{
+    "name": "task-management-system",
+    "version": "1.0.0",
+    "description": "Task Management System",
+    "main": "index.js",
+    "scripts": {},
+    "author": "Sebastin",
+    "license": "ISC",
+    "dependencies": {
+      "express": "^4.17.1",
+      "express-session": "^1.17.2",
+      "dotenv": "^16.3.1"
+    }
+  }
