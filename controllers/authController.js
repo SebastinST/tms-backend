@@ -12,7 +12,6 @@ exports.loginUser = catchAsyncErrors(async (req, res, next) => {
   }
 
   //find user in database
-
   const [row, fields] = await connection.promise().query("SELECT * FROM user WHERE username = ?", [username])
   if (row.length === 0) {
     return next(new ErrorResponse("User not found", 401))
@@ -48,15 +47,14 @@ exports.logout = catchAsyncErrors(async (req, res, next) => {
 exports.registerUser = catchAsyncErrors(async (req, res, next) => {
   const { username, email, password, group } = req.body
 
-  connection.query("INSERT INTO user (username, password, email, `groups`, is_disabled) VALUES (?,?,?,?,?)", [username, password, email, group, 0], async (error, result) => {
-    if (error) {
-      return next(new ErrorResponse("Failed to create user", 500))
-    }
+  const result = await connection.promise().execute("INSERT INTO user (username, password, email, `groups`, is_disabled) VALUES (?,?,?,?,?)", [username, password, email, group, 0])
+  if (result[0].affectedRows === 0) {
+    return next(new ErrorResponse("Failed to create user", 500))
+  }
 
-    res.status(200).json({
-      success: true,
-      message: "User created successfully"
-    })
+  res.status(200).json({
+    success: true,
+    message: "User created successfully"
   })
 })
 
