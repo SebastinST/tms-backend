@@ -2,6 +2,7 @@ const express = require("express")
 const app = express()
 
 const dotenv = require("dotenv")
+const cookieParser = require("cookie-parser")
 
 //Setting up config.env file variable
 dotenv.config({ path: "./config/config.env" })
@@ -25,6 +26,9 @@ const ErrorHandler = require("./utils/errorHandler")
 
 //Setting up body parser
 app.use(express.json())
+
+//Setting up cookie parser
+app.use(cookieParser())
 
 //Importing routes
 const auth = require("./routes/auth")

@@ -12,23 +12,23 @@ exports.loginUser = catchAsyncErrors(async (req, res, next) => {
   }
 
   //find user in database
-  connection.query("SELECT * FROM user WHERE username = ?", [username], async (error, result) => {
-    if (error) {
-      return next(new ErrorResponse("Internal Server Error", 500))
-    }
 
-    if (result.length === 0) {
-      return next(new ErrorResponse("User does not exist", 401))
-    }
+  const [row, fields] = await connection.promise().query("SELECT * FROM user WHERE username = ?", [username])
+  if (row.length === 0) {
+    return next(new ErrorResponse("User not found", 401))
+  }
 
-    const user = result[0]
+  const user = row[0]
 
-    if (user.password !== password) {
-      return next(new ErrorResponse("Invalid credentials", 401))
-    }
+  if (user.password !== password) {
+    return next(new ErrorResponse("Invalid credentials", 401))
+  }
 
-    sendToken(user, 200, res)
-  })
+  if (user.is_disabled === 1) {
+    return next(new ErrorResponse("User is disabled", 401))
+  }
+
+  sendToken(user, 200, res)
 })
 
 // Logout a user => /api/v1/logout
@@ -41,6 +41,22 @@ exports.logout = catchAsyncErrors(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: "Logged out"
+  })
+})
+
+// Create a user => /api/v1/register
+exports.registerUser = catchAsyncErrors(async (req, res, next) => {
+  const { username, email, password, group } = req.body
+
+  connection.query("INSERT INTO user (username, password, email, `groups`, is_disabled) VALUES (?,?,?,?,?)", [username, password, email, group, 0], async (error, result) => {
+    if (error) {
+      return next(new ErrorResponse("Failed to create user", 500))
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "User created successfully"
+    })
   })
 })
 
@@ -65,8 +81,8 @@ const sendToken = (user, statusCode, res) => {
   })
 }
 
-const getJwtToken = (user) => {
-  return jwt.sign({ id: this.id }, process.env.JWT_SECRET, {
+const getJwtToken = user => {
+  return jwt.sign({ username: user.username }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_TIME
   })
 }
