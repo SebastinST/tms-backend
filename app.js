@@ -30,7 +30,7 @@ app.use(express.json())
 const auth = require("./routes/auth")
 
 //Mounting routes
-app.use("/api/v1/auth", auth)
+app.use("/api/v1/", auth)
 
 //Handle unhandled routes
 app.all("*", (req, res, next) => {
