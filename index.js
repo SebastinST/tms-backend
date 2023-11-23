@@ -1,7 +1,12 @@
 const express = require('express');
 const session = require('express-session');
-const router = express.Router();
-const port = 3000;
+const dotenv = require("dotenv");
+
+//Setting up config.env file variable
+dotenv.config({ path: "./config/config.env" });
+
+//Setting up database connection
+const connection = require("./config/database");
 
 // Inititalize the app and add middleware
 const app = express();
@@ -32,8 +37,8 @@ app.post('/login', (req, res) => {
 });
 
 // User logout
-// GET to '/logout'
-app.get('/logout', (req, res) => {
+// GET to '/_logout'
+app.get('/_logout', (req, res) => {
   // Remove cookies
   req.session.isLoggedIn = false;
 
@@ -75,27 +80,82 @@ app.post('/updateSelf', (req, res) => {
 /** A1: Manage Accounts **/ 
 // Create user group
 // POST to '/createGroup'
-app.post('/createGroup', (req, res) => {
+app.post('/createGroup', async (req, res) => {
   const {group_name} = req.body;
 
   // Check if group_name is valid
 
   // DB create group with group_name
+  try {
+    const result = await connection.promise().execute(
+      "INSERT INTO usergroups (group_name) VALUES (?)", 
+      [group_name]
+    )
+    
+    if (result[0].affectedRows === 0) {
+      res.status(500).json({
+        success : false,
+        message : 'Error: Issue creating user group',
+        data : result
+    })
+    return;
+    };
 
-  // Return successful creation
+    // Return successful creation
+    return res.status(200).json({
+      success : true,
+      message : 'User group created',
+      data : result
+    })
 
+  } catch(e) {
+    res.status(500).json({
+      success : false,
+      message : `Error:${e}`,
+    });
+    return;
+  }
 })
 
 // Create user account
 // POST to '/createUser'
-app.post('/createUser', (req, res) => {
-  const { username, password, email, group_list} = req.body;
+app.post('/createUser', async (req, res) => {
+  let { username, password, email, group_list} = req.body;
   
   // Check username and password provided and valid
 
   // DB create user with given details
+  if (!email) {email = null};
+  if (!group_list) {group_list = null};
+  try {
+    const result = await connection.promise().execute(
+      "INSERT INTO user (username, password, email, `group_list`, is_disabled) VALUES (?,?,?,?,?)", 
+      [username, password, email, group_list, 0]
+    )
+    
+    if (result[0].affectedRows === 0) {
+      res.status(500).json({
+        success : false,
+        message : 'Error: Issue creating user',
+        data : result
+    })
+    return;
+    };
 
-  // Return successful creation
+    // Return successful creation
+    return res.status(200).json({
+      success : true,
+      message : 'User created',
+      data : result
+    })
+
+  } catch(e) {
+    res.status(500).json({
+      success : false,
+      message : `Error:${e}`,
+    });
+    return;
+  }
 });
 
 // Show all user account details
@@ -137,6 +197,7 @@ app.post('/toggleUserStatus', (req, res) => {
 
 
 /** App listening on port */
-app.listen(port, () => {
-  console.log(`TMS at http://localhost:${port}`);
+const PORT = process.env.PORT
+app.listen(PORT, () => {
+  console.log(`TMS at http://localhost:${PORT}`);
 });
