@@ -1,6 +1,9 @@
 const connection = require("../config/database")
+const catchAsyncErrors = require("../middleware/catchAsyncErrors")
+const ErrorResponse = require("../utils/errorHandler")
+const jwt = require("jsonwebtoken")
 
-exports.loginUser = async (req, res, next) => {
+exports.loginUser = catchAsyncErrors(async (req, res, next) => {
   const { username, password } = req.body
 
   if (!username || !password) {
@@ -23,9 +26,33 @@ exports.loginUser = async (req, res, next) => {
       return next(new ErrorResponse("Invalid credentials", 401))
     }
 
-    res.status(200).json({
-      success: true,
-      data: user
-    })
+    sendToken(user, 200, res)
+  })
+})
+
+// Create and send token and save in cookie
+const sendToken = (user, statusCode, res) => {
+  // Create JWT Token
+  const token = getJwtToken(user)
+
+  // Options for cookie
+  const options = {
+    expires: new Date(Date.now() + process.env.COOKIE_EXPIRES_TIME * 24 * 60 * 60 * 1000),
+    httpOnly: true
+  }
+
+  // if(process.env.NODE_ENV === 'production ') {
+  //     options.secure = true;
+  // }
+
+  res.status(statusCode).cookie("token", token, options).json({
+    success: true,
+    token
+  })
+}
+
+const getJwtToken = (user) => {
+  return jwt.sign({ id: this.id }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_TIME
   })
 }
