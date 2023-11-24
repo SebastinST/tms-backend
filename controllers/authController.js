@@ -93,7 +93,8 @@ const sendToken = (user, statusCode, res) => {
   res.status(statusCode).cookie("token", token, options).json({
     success: true,
     token,
-    group_list: user.group_list
+    group_list: user.group_list,
+    username: user.username,
   })
 }
 

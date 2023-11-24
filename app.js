@@ -21,11 +21,6 @@ const connection = require("./config/database")
 const errorMiddleware = require("./middleware/errors")
 const ErrorHandler = require("./utils/errorHandler")
 
-/*const query = connection.query("SELECT * FROM user", function (error, result, fields) {
-  console.log(result)
-  console.log(fields)
-})*/
-
 //Setting up body parser
 app.use(express.json())
 
@@ -35,10 +30,12 @@ app.use(express.json())
 //Importing routes
 const auth = require("./routes/auth")
 const user = require("./routes/user")
+const routes = require("./routes/routes")
 
 //Mounting routes
 app.use("/", auth)
 app.use("/userController", user)
+app.use("/controller", routes)
 
 //Handle unhandled routes
 app.all("*", (req, res, next) => {
