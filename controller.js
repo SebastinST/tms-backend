@@ -1,5 +1,6 @@
 const connection = require("./config/database");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 
 /* U1: Login & Logout */ 
 
@@ -17,14 +18,24 @@ exports.login = async (req, res) => {
 
         const user = result[0][0];
         
-        // Check for valid user account, and password
-        if (!user || password != user.password) {
+        // Check for valid user account
+        if (!user) {
             res.status(400).json({
                 success : false,
-                message : 'Error: Invalid login',
+                message : 'Error: Invalid login credentials',
             });
             return;
         };
+
+        //Use bcrypt to compare password
+        const passwordsMatch = await bcrypt.compare(password, user.password);
+        if (!passwordsMatch) {
+          res.status(400).json({
+            success : false,
+            message : 'Error: Invalid login credentials',
+          });
+          return;
+        }
 
         // Handle valid login
 
@@ -120,12 +131,15 @@ exports.updateSelf = async (req, res) => {
       })
       return;
     }
+
+    // Encrypt valid password with salt 10
+    const hashedPassword = await bcrypt.hash(password, 10);
   
     // DB update user account details based on username
     try {
       const result = await connection.promise().execute(
         "UPDATE user SET password=?,email=? WHERE username=?", 
-        [password, email, username]
+        [hashedPassword, email, username]
       )
   
       if (result[0].affectedRows === 0) {
@@ -219,13 +233,16 @@ exports.createUser = async (req, res) => {
       return;
     }
 
+    // Encrypt valid password with salt 10
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     // DB create user with given details
     if (!email) {email = null};
     if (!group_list) {group_list = null};
     try {
       const result = await connection.promise().execute(
         "INSERT INTO user (username, password, email, `group_list`, is_disabled) VALUES (?,?,?,?,?)", 
-        [username, password, email, group_list, 0]
+        [username, hashedPassword, email, group_list, 0]
       )
       
       if (result[0].affectedRows === 0) {
@@ -327,11 +344,14 @@ exports.updateUser = async (req, res) => {
       return;
     }
 
+    // Encrypt valid password with salt 10
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     // DB update user account details based on username
     try {
       const result = await connection.promise().execute(
         "UPDATE user SET email=?,password=?,group_list=?,is_disabled=? WHERE username=?", 
-        [email, password, group_list, is_disabled, username]
+        [email, hashedPassword, group_list, is_disabled, username]
       )
   
       if (result[0].affectedRows === 0) {
