@@ -77,7 +77,7 @@ exports._logout = (req, res) => {
 exports.getSelf = async (req, res) => {
   
     // Get username from token
-    const username = req.query.username;
+    const username = req.user.username;
     
     // DB select user account based on 'username'
     try {
@@ -109,7 +109,7 @@ exports.updateSelf = async (req, res) => {
     const {password, email} = req.body;
   
     // Get username from token
-    const username = req.query.username;
+    const username = req.user.username;
     
     // Check if password is provided, it is valid
   

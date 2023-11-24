@@ -3,7 +3,7 @@ const dotenv = require("dotenv");
 
 /* 
 To-do
-- Authenticate based on token (get username for functions)
+- Password constraints
 - BcryptJS password
 - CORS
 */
