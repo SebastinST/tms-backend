@@ -111,7 +111,15 @@ exports.updateSelf = async (req, res) => {
     // Get username from token
     const username = req.user.username;
     
-    // Check if password is provided, it is valid
+    // Check if password is provided, 8 > character > 10 and only include alphanumeric, number and special character
+    const passwordRegex = /^(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,10}$/
+    if (!passwordRegex.test(password)) {
+      res.status(400).json({
+        success : false,
+        message : 'Error: Password must be 8-10 characters long, contain at least one number, one letter and one special character',
+      })
+      return;
+    }
   
     // DB update user account details based on username
     try {
@@ -149,7 +157,15 @@ exports.updateSelf = async (req, res) => {
 exports.createGroup = async (req, res) => {
     const {group_name} = req.body;
   
-    // Check if group_name is valid
+    // Check if group_name is only alphanumeric and contains no spaces
+    const groupnameRegex = /^[0-9a-zA-Z]+$/
+    if (!groupnameRegex.test(group_name)) {
+      res.status(400).json({
+        success : false,
+        message : 'Error: Groupname can only be alphanumeric and contain no spaces',
+      })
+      return;
+    }
   
     // DB create group with group_name
     try {
@@ -173,6 +189,13 @@ exports.createGroup = async (req, res) => {
       })
   
     } catch(e) {
+      if (e.code === "ER_DUP_ENTRY") {
+        res.status(500).json({
+          success : false,
+          message : `Error: Group '${group_name}' already exists`
+        });
+        return;  
+      }
       res.status(500).json({
         success : false,
         message : e
@@ -186,8 +209,16 @@ exports.createGroup = async (req, res) => {
 exports.createUser = async (req, res) => {
     let { username, password, email, group_list } = req.body;
     
-    // Check username and password provided and valid
-  
+    // Check if password is provided, 8 > character > 10 and only include alphanumeric, number and special character
+    const passwordRegex = /^(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,10}$/
+    if (!passwordRegex.test(password)) {
+      res.status(400).json({
+        success : false,
+        message : 'Error: Password must be 8-10 characters long, contain at least one number, one letter and one special character',
+      })
+      return;
+    }
+
     // DB create user with given details
     if (!email) {email = null};
     if (!group_list) {group_list = null};
@@ -212,6 +243,13 @@ exports.createUser = async (req, res) => {
       })
   
     } catch(e) {
+      if (e.code === "ER_DUP_ENTRY") {
+        res.status(500).json({
+          success : false,
+          message : `Error: User '${username}' already exists`
+        });
+        return;  
+      }
       res.status(500).json({
         success : false,
         message : e
@@ -279,8 +317,16 @@ exports.updateUser = async (req, res) => {
     // Assume all fields given (previous value if unchanged)
     const {username, email, password, group_list, is_disabled} = req.body;
   
-    // Check password is provided and valid
-  
+    // Check if password is provided, 8 > character > 10 and only include alphanumeric, number and special character
+    const passwordRegex = /^(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,10}$/
+    if (!passwordRegex.test(password)) {
+      res.status(400).json({
+        success : false,
+        message : 'Error: Password must be 8-10 characters long, contain at least one number, one letter and one special character',
+      })
+      return;
+    }
+
     // DB update user account details based on username
     try {
       const result = await connection.promise().execute(
