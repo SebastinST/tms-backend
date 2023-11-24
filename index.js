@@ -1,11 +1,12 @@
 const express = require('express');
 const dotenv = require("dotenv");
+const cors = require("cors");
 
 /* 
 To-do
-- Password constraints
-- BcryptJS password
-- CORS
+- Handle missing optional fields for endpoints
+- Find out what is CORS
+- Checkgroup function
 */
 
 //Setting up config.env file variable
@@ -17,6 +18,7 @@ const connection = require("./config/database");
 // Inititalize the app and add middleware
 const app = express();
 app.use(express.json());
+app.use(cors());
 
 //Importing routes
 const router = require("./router")
