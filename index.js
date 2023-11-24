@@ -37,11 +37,12 @@ app.post('/login', async (req, res) => {
 
     // Check user account password != provided password
     if (password == result[0][0].password) {
+      // Add cookies
+      
       // Return login success
       return res.status(200).json({
         success : true,
-        message : 'User logged in',
-        data : username
+        message : `Success: User '${username}' logged in`,
       });
     } else {
       res.status(400).json({
@@ -72,7 +73,7 @@ app.get('/_logout', (req, res) => {
   // Return logout success
   res.status(200).json({
       success : true,
-      message : 'Successfully logged out'
+      message : 'Success: User logged out'
   });
 });
 /** End of U1: Login & Logout **/ 
@@ -88,14 +89,14 @@ app.get('/getSelf', async (req, res) => {
   // DB select user account based on 'username'
   try {
     const result = await connection.promise().execute(
-      "SELECT email, username, group_list FROM user WHERE username=?", 
+      "SELECT username, email, group_list FROM user WHERE username=?", 
       [username]
     )
     
     // Return user account details
     return res.status(200).json({
       success : true,
-      message : 'User details',
+      message : `Success: User '${username}' details returned`,
       data : result[0][0]
     });
     
@@ -112,7 +113,7 @@ app.get('/getSelf', async (req, res) => {
 // POST to '/updateSelf'
 app.post('/updateSelf', async (req, res) => {
   // Assume email and password always given (previous value if unchanged)
-  const {email, password} = req.body;
+  const {password, email} = req.body;
 
   // Get username from token
   const username = req.query.username;
@@ -122,8 +123,8 @@ app.post('/updateSelf', async (req, res) => {
   // DB update user account details based on username
   try {
     const result = await connection.promise().execute(
-      "UPDATE user SET email=?,password=? WHERE username=?", 
-      [email, password, username]
+      "UPDATE user SET password=?,email=? WHERE username=?", 
+      [password, email, username]
     )
 
     if (result[0].affectedRows === 0) {
@@ -137,7 +138,7 @@ app.post('/updateSelf', async (req, res) => {
     // Return successful update
     return res.status(200).json({
       success : true,
-      message : 'User updated',
+      message : `Success: User '${username}' details updated`,
     })
   } catch (e) {
     res.status(500).json({
@@ -175,8 +176,7 @@ app.post('/createGroup', async (req, res) => {
     // Return successful creation
     return res.status(200).json({
       success : true,
-      message : 'User group created',
-      data : result
+      message : `Success: User group '${group_name}' created`,
     })
 
   } catch(e) {
@@ -191,7 +191,7 @@ app.post('/createGroup', async (req, res) => {
 // Create user account
 // POST to '/createUser'
 app.post('/createUser', async (req, res) => {
-  let { username, password, email, group_list} = req.body;
+  let { username, password, email, group_list } = req.body;
   
   // Check username and password provided and valid
 
@@ -215,8 +215,7 @@ app.post('/createUser', async (req, res) => {
     // Return successful creation
     return res.status(200).json({
       success : true,
-      message : 'User created',
-      data : result
+      message : `Success: User '${username}' created`,
     })
 
   } catch(e) {
@@ -233,7 +232,6 @@ app.post('/createUser', async (req, res) => {
 app.get('/getAllUsers', async (req, res) => {
   
   // DB select all users account details
-  // DB select user account based on 'username'
   try {
     const result = await connection.promise().execute(
       "SELECT username, email, group_list, is_disabled FROM user"
@@ -242,7 +240,34 @@ app.get('/getAllUsers', async (req, res) => {
     // Return all users account details
     return res.status(200).json({
       success : true,
-      message : 'All user details',
+      message : 'Success: All user details returned',
+      data : result[0]
+    });
+    
+  } catch(e) {
+    res.status(500).json({
+      success : false,
+      message : e
+    });
+    return;
+  }
+
+});
+
+// Show all user group details
+// GET to '/getAllGroups'
+app.get('/getAllGroups', async (req, res) => {
+  
+  // DB select all users groups details
+  try {
+    const result = await connection.promise().execute(
+      "SELECT group_name FROM usergroups"
+    )
+    
+    // Return all users account details
+    return res.status(200).json({
+      success : true,
+      message : 'Success: All user groups returned',
       data : result[0]
     });
     
@@ -282,7 +307,7 @@ app.post('/updateUser', async (req, res) => {
     // Return successful update
     return res.status(200).json({
       success : true,
-      message : 'User updated',
+      message : `Success: User '${username}' details updated`,
     })
   } catch (e) {
     res.status(500).json({
