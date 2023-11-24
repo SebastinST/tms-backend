@@ -57,9 +57,12 @@ exports.updateUser = catchAsyncErrors(async (req, res, next) => {
 
   //We need to check for password constraint, minimum character is 8 and maximum character is 10. It should include alphanumeric, number and special character. We do not care baout uppercase and lowercase.
   const passwordRegex = /^(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,10}$/
-  if (!passwordRegex.test(password)) {
+  if (!passwordRegex.test(req.body.password)) {
     return next(new ErrorResponse("Password must be 8-10 characters long, contain at least one number, one letter and one special character", 400))
   }
+
+  //bcrypt password with salt 10
+  const hashedPassword = await bcrypt.hash(req.body.password, 10)
 
   //the fields are optional to update, so we need to build the query dynamically
   let query = "UPDATE user SET "
@@ -71,7 +74,7 @@ exports.updateUser = catchAsyncErrors(async (req, res, next) => {
   }
   if (req.body.password) {
     query += "password = ?, "
-    values.push(req.body.password)
+    values.push(hashedPassword)
   }
   if (req.body.group) {
     query += "`group_list` = ?, "
@@ -129,7 +132,7 @@ exports.updateUserPassword = catchAsyncErrors(async (req, res, next) => {
   //bcrypt new password with salt 10
   const hashedPassword = await bcrypt.hash(req.body.password, 10)
 
-  const result = await connection.promise().execute("UPDATE user SET password = ? WHERE username = ?", [hashedPassword, req.params.username])
+  const result = await connection.promise().execute("UPDATE user SET password = ? WHERE username = ?", [req.body.password, req.params.username])
   if (result[0].affectedRows === 0) {
     return next(new ErrorResponse("Failed to update user", 500))
   }

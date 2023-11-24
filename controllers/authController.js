@@ -6,9 +6,10 @@ const bcrypt = require("bcryptjs")
 
 // Login a user => /login
 exports.loginUser = catchAsyncErrors(async (req, res, next) => {
-  //the
+  //get username and password from request body
   const { username, password } = req.body
 
+  //check if username and password is provided
   if (!username || !password) {
     return next(new ErrorResponse("Please provide an username and password", 400))
   }
@@ -18,29 +19,33 @@ exports.loginUser = catchAsyncErrors(async (req, res, next) => {
   if (row.length === 0) {
     return next(new ErrorResponse("User not found", 401))
   }
-
+  //get user from row
   const user = row[0]
 
   //Use bcrypt to compare password
-  /*const isPasswordMatched = await bcrypt.compare(password, user.password)
+  const isPasswordMatched = await bcrypt.compare(password, user.password)
   if (!isPasswordMatched) {
     return next(new ErrorResponse("Invalid password", 401))
-  }*/
+  }
 
+  //Check if user is disabled
   if (user.is_disabled === 1) {
     return next(new ErrorResponse("User is disabled", 401))
   }
 
+  //Send token
   sendToken(user, 200, res)
 })
 
 // Logout a user => /_logout
 exports.logout = catchAsyncErrors(async (req, res, next) => {
+  //Set cookie to null so that it will expire and user will not be able to access protected routes
   res.cookie("token", null, {
     expires: new Date(Date.now()),
     httpOnly: true
   })
 
+  //Send response
   res.status(200).json({
     success: true,
     message: "Logged out"
