@@ -22,6 +22,7 @@ exports.isAuthenticatedUser = catchAsyncErrors(async (req, res, next) => {
   if (req.user.is_disabled === 1) {
     return next(new ErrorHandler("User is disabled", 401))
   }
+  next()
 })
 
 // handling users roles

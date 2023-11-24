@@ -5,6 +5,7 @@ const jwt = require("jsonwebtoken")
 
 // Login a user => /login
 exports.loginUser = catchAsyncErrors(async (req, res, next) => {
+  //the
   const { username, password } = req.body
 
   if (!username || !password) {
