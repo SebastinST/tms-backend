@@ -11,72 +11,14 @@ const connection = require("./config/database");
 const app = express();
 app.use(express.json());
 
+//Importing routes
+const auth = require("./routes/authRouter")
+// const user = require("./routes/userRouter")
 
-/** U1: Login & Logout **/ 
+//Mounting routes
+app.use("/", auth)
+// app.use("/userController", user)
 
-// User login
-// POST to '/login'
-app.post('/login', async (req, res) => {
-  const {username, password} = req.body;
-
-  // DB select user account based on 'username'
-  try {
-    const result = await connection.promise().execute(
-      "SELECT * FROM user WHERE username=?", 
-      [username]
-    )
-    
-    // Check for valid user account
-    if (result[0].length === 0) {
-      res.status(400).json({
-        success : false,
-        message : 'Error: Invalid login',
-      });
-      return;
-    };
-
-    // Check user account password != provided password
-    if (password == result[0][0].password) {
-      // Add cookies
-      
-      // Return login success
-      return res.status(200).json({
-        success : true,
-        message : `Success: User '${username}' logged in`,
-      });
-    } else {
-      res.status(400).json({
-        success : false,
-        message : 'Error: Invalid login',
-      });
-      return;
-    }
-
-  } catch(e) {
-    res.status(500).json({
-      success : false,
-      message : e
-    });
-    return;
-  }
-});
-
-// User logout
-// GET to '/_logout'
-app.get('/_logout', (req, res) => {
-  // Remove cookies
-  res.cookie('token', 'none', {
-    expires : new Date(Date.now()),
-    httpOnly : true
-  });
-
-  // Return logout success
-  res.status(200).json({
-      success : true,
-      message : 'Success: User logged out'
-  });
-});
-/** End of U1: Login & Logout **/ 
 
 /** U2: Update Account **/ 
 // Show current user account details
