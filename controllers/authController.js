@@ -48,6 +48,11 @@ exports.logout = catchAsyncErrors(async (req, res, next) => {
 exports.registerUser = catchAsyncErrors(async (req, res, next) => {
   const { username, password, email, group_list } = req.body
 
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,10}$/
+  if (req.body.password && !passwordRegex.test(req.body.password)) {
+    return next(new ErrorResponse("Password must be 8-10 characters long, contain at least one uppercase letter, one lowercase letter, one number and one special character", 400))
+  }
+
   const result = await connection.promise().execute("INSERT INTO user (username, password, email, `group_list`, is_disabled) VALUES (?,?,?,?,?)", [username, password, email, group_list, 0])
   if (result[0].affectedRows === 0) {
     return next(new ErrorResponse("Failed to create user", 500))

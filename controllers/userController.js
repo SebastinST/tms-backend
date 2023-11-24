@@ -52,13 +52,19 @@ exports.updateUser = catchAsyncErrors(async (req, res, next) => {
   }
 
   const user = row[0]
+  //We need to check for password constraint, minimum character is 8 and maximum character is 10. It should only contain alphanumeric character and special character.
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,10}$/
+  if (req.body.password && !passwordRegex.test(req.body.password)) {
+    return next(new ErrorResponse("Password must be 8-10 characters long, contain at least one uppercase letter, one lowercase letter, one number and one special character", 400))
+  }
+
   //the fields are optional to update, so we need to build the query dynamically
   let query = "UPDATE user SET "
   let values = []
   //Updatable fields are email, password, groups.
   if (req.body.email) {
     query += "email = ?, "
-    values.push(req.body.email)             
+    values.push(req.body.email)
   }
   if (req.body.password) {
     query += "password = ?, "
