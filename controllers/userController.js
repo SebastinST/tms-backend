@@ -58,7 +58,7 @@ exports.updateUser = catchAsyncErrors(async (req, res, next) => {
   //Updatable fields are email, password, groups.
   if (req.body.email) {
     query += "email = ?, "
-    values.push(req.body.email)
+    values.push(req.body.email)             
   }
   if (req.body.password) {
     query += "password = ?, "
