@@ -18,7 +18,7 @@ exports.login = async (req, res) => {
         const user = result[0][0];
         
         // Check for valid user account, and password
-        if (!user || user.is_disabled || password != user.password) {
+        if (!user || password != user.password) {
             res.status(400).json({
                 success : false,
                 message : 'Error: Invalid login',
@@ -33,6 +33,7 @@ exports.login = async (req, res) => {
             process.env.JWT_SECRET, 
             {expiresIn: process.env.JWT_EXPIRES_TIME}
         )
+        // Setting expiry time for COOKIE_EXPIRES_TIME * 1 day (7 days)
         const options = {
             expires: new Date(Date.now() + process.env.COOKIE_EXPIRES_TIME * 24 * 60 * 60 * 1000),
             httpOnly: true
