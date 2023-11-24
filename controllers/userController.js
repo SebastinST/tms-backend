@@ -65,7 +65,7 @@ exports.updateUser = catchAsyncErrors(async (req, res, next) => {
     values.push(req.body.password)
   }
   if (req.body.group) {
-    query += "`groups` = ?, "
+    query += "`group_list` = ?, "
     values.push(req.body.group)
   }
   //remove the last comma and space

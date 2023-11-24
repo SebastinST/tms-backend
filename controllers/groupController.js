@@ -6,7 +6,7 @@ const ErrorResponse = require("../utils/errorHandler")
 exports.createGroup = catchAsyncErrors(async (req, res, next) => {
   const { name } = req.body
 
-  const result = await connection.promise().execute("INSERT INTO `group` (name) VALUES (?)", [name])
+  const result = await connection.promise().execute("INSERT INTO `group_list` (name) VALUES (?)", [name])
   if (result[0].affectedRows === 0) {
     return next(new ErrorResponse("Failed to create group", 500))
   }

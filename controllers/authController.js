@@ -46,9 +46,9 @@ exports.logout = catchAsyncErrors(async (req, res, next) => {
 
 // Create a user => /register
 exports.registerUser = catchAsyncErrors(async (req, res, next) => {
-  const { username, email, password, group } = req.body
+  const { username, password, email, group_list } = req.body
 
-  const result = await connection.promise().execute("INSERT INTO user (username, password, email, `groups`, is_disabled) VALUES (?,?,?,?,?)", [username, password, email, group, 0])
+  const result = await connection.promise().execute("INSERT INTO user (username, password, email, `group_list`, is_disabled) VALUES (?,?,?,?,?)", [username, password, email, group_list, 0])
   if (result[0].affectedRows === 0) {
     return next(new ErrorResponse("Failed to create user", 500))
   }
@@ -63,7 +63,6 @@ exports.registerUser = catchAsyncErrors(async (req, res, next) => {
 const sendToken = (user, statusCode, res) => {
   // Create JWT Token
   const token = getJwtToken(user)
-
   // Options for cookie
   const options = {
     expires: new Date(Date.now() + process.env.COOKIE_EXPIRES_TIME * 24 * 60 * 60 * 1000),
@@ -77,7 +76,7 @@ const sendToken = (user, statusCode, res) => {
   res.status(statusCode).cookie("token", token, options).json({
     success: true,
     token,
-    group: user.groups
+    group_list: user.group_list
   })
 }
 
