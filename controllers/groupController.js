@@ -4,9 +4,16 @@ const ErrorResponse = require("../utils/errorHandler")
 
 // Create a group => /groupController/createGroup
 exports.createGroup = catchAsyncErrors(async (req, res, next) => {
-  const { name } = req.body
+  const { group_name } = req.body
 
-  const result = await connection.promise().execute("INSERT INTO `group_list` (name) VALUES (?)", [name])
+  //Check if group already exists
+  const [row, fields] = await connection.promise().query("SELECT * FROM usergroups WHERE group_name = ?", [group_name])
+  if (row.length !== 0) {
+    return next(new ErrorResponse("Group already exists", 400))
+  }
+
+  //Insert group into database
+  const result = await connection.promise().execute("INSERT INTO usergroups (group_name) VALUES (?)", [group_name])
   if (result[0].affectedRows === 0) {
     return next(new ErrorResponse("Failed to create group", 500))
   }

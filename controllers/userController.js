@@ -140,6 +140,7 @@ exports.updateUserPassword = catchAsyncErrors(async (req, res, next) => {
   sendToken(user, 200, res)
 })
 
+
 // Create and send token and save in cookie
 const sendToken = (user, statusCode, res) => {
   // Create JWT Token
