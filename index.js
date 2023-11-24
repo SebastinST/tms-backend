@@ -54,7 +54,7 @@ app.post('/login', async (req, res) => {
   } catch(e) {
     res.status(500).json({
       success : false,
-      message : `Error: ${e}`,
+      message : e
     });
     return;
   }
@@ -102,7 +102,7 @@ app.get('/getSelf', async (req, res) => {
   } catch(e) {
     res.status(500).json({
       success : false,
-      message : `Error: ${e}`,
+      message : e
     });
     return;
   }
@@ -142,7 +142,7 @@ app.post('/updateSelf', async (req, res) => {
   } catch (e) {
     res.status(500).json({
       success : false,
-      message : `Error:${e}`,
+      message : e
     });
     return;
   }
@@ -182,7 +182,7 @@ app.post('/createGroup', async (req, res) => {
   } catch(e) {
     res.status(500).json({
       success : false,
-      message : `Error:${e}`,
+      message : e
     });
     return;
   }
@@ -222,7 +222,7 @@ app.post('/createUser', async (req, res) => {
   } catch(e) {
     res.status(500).json({
       success : false,
-      message : `Error:${e}`,
+      message : e
     });
     return;
   }
@@ -230,38 +230,67 @@ app.post('/createUser', async (req, res) => {
 
 // Show all user account details
 // GET to '/getAllUsers'
-app.get('/getAllUsers', (req, res) => {
+app.get('/getAllUsers', async (req, res) => {
   
   // DB select all users account details
-
-  // Return all users account details
+  // DB select user account based on 'username'
+  try {
+    const result = await connection.promise().execute(
+      "SELECT username, email, group_list, is_disabled FROM user"
+    )
+    
+    // Return all users account details
+    return res.status(200).json({
+      success : true,
+      message : 'All user details',
+      data : result[0]
+    });
+    
+  } catch(e) {
+    res.status(500).json({
+      success : false,
+      message : e
+    });
+    return;
+  }
 
 });
 
 // Update user account
 // POST to '/updateUser'
-app.post('/updateUser', (req, res) => {
-  const {username, email, password, group_list} = req.body;
+app.post('/updateUser', async (req, res) => {
+  // Assume all fields given (previous value if unchanged)
+  const {username, email, password, group_list, is_disabled} = req.body;
 
   // Check password is provided and valid
 
   // DB update user account details based on username
-    // if email is given, update email
-    // if password is given, update password
-  
-  // Return successful update
+  try {
+    const result = await connection.promise().execute(
+      "UPDATE user SET email=?,password=?,group_list=?,is_disabled=? WHERE username=?", 
+      [email, password, group_list, is_disabled, username]
+    )
 
-});
+    if (result[0].affectedRows === 0) {
+      res.status(500).json({
+        success : false,
+        message : 'Error: Updating user',
+      })
+      return;
+    }
 
-// Toggle user account status
-// POST to '/toggleUserStatus'
-app.post('/toggleUserStatus', (req, res) => {
-  const {username} = req.body;
-
-  // DB toggle user account status based on username
-
-  // Return successful update
-
+    // Return successful update
+    return res.status(200).json({
+      success : true,
+      message : 'User updated',
+    })
+  } catch (e) {
+    res.status(500).json({
+      success : false,
+      message : e,
+    });
+    return;
+  }
 });
 /** End of A1: Manage Accounts **/ 
 
