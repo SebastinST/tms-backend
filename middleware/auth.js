@@ -11,7 +11,7 @@ exports.isAuthenticatedUser = catchAsyncErrors(async (req, res, next) => {
     token = req.headers.authorization.split(" ")[1]
   }
 
-  if (!token) {
+  if (token === "null" || !token) {
     return next(new ErrorHandler("Login first to access this resource.", 401))
   }
 
