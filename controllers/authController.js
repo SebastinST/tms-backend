@@ -2,6 +2,7 @@ const connection = require("../config/database")
 const catchAsyncErrors = require("../middleware/catchAsyncErrors")
 const ErrorResponse = require("../utils/errorHandler")
 const jwt = require("jsonwebtoken")
+const bcrypt = require("bcryptjs")
 
 // Login a user => /login
 exports.loginUser = catchAsyncErrors(async (req, res, next) => {
@@ -20,9 +21,11 @@ exports.loginUser = catchAsyncErrors(async (req, res, next) => {
 
   const user = row[0]
 
-  if (user.password !== password) {
-    return next(new ErrorResponse("Invalid credentials", 401))
-  }
+  //Use bcrypt to compare password
+  /*const isPasswordMatched = await bcrypt.compare(password, user.password)
+  if (!isPasswordMatched) {
+    return next(new ErrorResponse("Invalid password", 401))
+  }*/
 
   if (user.is_disabled === 1) {
     return next(new ErrorResponse("User is disabled", 401))
@@ -48,12 +51,16 @@ exports.logout = catchAsyncErrors(async (req, res, next) => {
 exports.registerUser = catchAsyncErrors(async (req, res, next) => {
   const { username, password, email, group_list } = req.body
 
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,10}$/
-  if (req.body.password && !passwordRegex.test(req.body.password)) {
-    return next(new ErrorResponse("Password must be 8-10 characters long, contain at least one uppercase letter, one lowercase letter, one number and one special character", 400))
+  //We need to check for password constraint, minimum character is 8 and maximum character is 10. It should include alphanumeric, number and special character. We do not care baout uppercase and lowercase.
+  const passwordRegex = /^(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,10}$/
+  if (!passwordRegex.test(password)) {
+    return next(new ErrorResponse("Password must be 8-10 characters long, contain at least one number, one letter and one special character", 400))
   }
 
-  const result = await connection.promise().execute("INSERT INTO user (username, password, email, `group_list`, is_disabled) VALUES (?,?,?,?,?)", [username, password, email, group_list, 0])
+  //Bcrypt password with salt 10
+  const hashedPassword = await bcrypt.hash(password, 10)
+
+  const result = await connection.promise().execute("INSERT INTO user (username, password, email, `group_list`, is_disabled) VALUES (?,?,?,?,?)", [username, hashedPassword, email, group_list, 0])
   if (result[0].affectedRows === 0) {
     return next(new ErrorResponse("Failed to create user", 500))
   }

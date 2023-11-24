@@ -1,6 +1,8 @@
 const connection = require("../config/database")
 const catchAsyncErrors = require("../middleware/catchAsyncErrors")
 const ErrorResponse = require("../utils/errorHandler")
+const bcrypt = require("bcryptjs")
+const jwt = require("jsonwebtoken")
 
 // Get all users => /userController/getUsers
 exports.getUsers = catchAsyncErrors(async (req, res, next) => {
@@ -52,10 +54,11 @@ exports.updateUser = catchAsyncErrors(async (req, res, next) => {
   }
 
   const user = row[0]
-  //We need to check for password constraint, minimum character is 8 and maximum character is 10. It should only contain alphanumeric character and special character.
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,10}$/
-  if (req.body.password && !passwordRegex.test(req.body.password)) {
-    return next(new ErrorResponse("Password must be 8-10 characters long, contain at least one uppercase letter, one lowercase letter, one number and one special character", 400))
+
+  //We need to check for password constraint, minimum character is 8 and maximum character is 10. It should include alphanumeric, number and special character. We do not care baout uppercase and lowercase.
+  const passwordRegex = /^(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,10}$/
+  if (!passwordRegex.test(password)) {
+    return next(new ErrorResponse("Password must be 8-10 characters long, contain at least one number, one letter and one special character", 400))
   }
 
   //the fields are optional to update, so we need to build the query dynamically
@@ -117,13 +120,46 @@ exports.updateUserPassword = catchAsyncErrors(async (req, res, next) => {
   }
 
   const user = row[0]
-  const result = await connection.promise().execute("UPDATE user SET password = ? WHERE username = ?", [req.body.password, req.params.username])
+  //Compare old password with the password in database
+  const isPasswordMatched = await bcrypt.compare(req.body.old_password, user.password)
+  if (!isPasswordMatched) {
+    return next(new ErrorResponse("Invalid password", 401))
+  }
+
+  //bcrypt new password with salt 10
+  const hashedPassword = await bcrypt.hash(req.body.password, 10)
+
+  const result = await connection.promise().execute("UPDATE user SET password = ? WHERE username = ?", [hashedPassword, req.params.username])
   if (result[0].affectedRows === 0) {
     return next(new ErrorResponse("Failed to update user", 500))
   }
 
-  res.status(200).json({
-    success: true,
-    message: "User updated successfully"
-  })
+  sendToken(user, 200, res)
 })
+
+// Create and send token and save in cookie
+const sendToken = (user, statusCode, res) => {
+  // Create JWT Token
+  const token = getJwtToken(user)
+  // Options for cookie
+  const options = {
+    expires: new Date(Date.now() + process.env.COOKIE_EXPIRES_TIME * 24 * 60 * 60 * 1000),
+    httpOnly: true
+  }
+
+  // if(process.env.NODE_ENV === 'production ') {
+  //     options.secure = true;
+  // }
+
+  res.status(statusCode).cookie("token", token, options).json({
+    success: true,
+    token,
+    group_list: user.group_list
+  })
+}
+
+const getJwtToken = user => {
+  return jwt.sign({ username: user.username }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_TIME
+  })
+}
