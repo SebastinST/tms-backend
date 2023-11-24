@@ -1,5 +1,4 @@
 const express = require('express');
-const session = require('express-session');
 const dotenv = require("dotenv");
 
 //Setting up config.env file variable
@@ -11,7 +10,6 @@ const connection = require("./config/database");
 // Inititalize the app and add middleware
 const app = express();
 app.use(express.json());
-app.use(session({secret: 'super-secret'})); // Session setup
 
 
 /** U1: Login & Logout **/ 
@@ -66,40 +64,88 @@ app.post('/login', async (req, res) => {
 // GET to '/_logout'
 app.get('/_logout', (req, res) => {
   // Remove cookies
-  req.session.isLoggedIn = false;
+  res.cookie('token', 'none', {
+    expires : new Date(Date.now()),
+    httpOnly : true
+  });
 
   // Return logout success
+  res.status(200).json({
+      success : true,
+      message : 'Successfully logged out'
+  });
 });
 /** End of U1: Login & Logout **/ 
 
 /** U2: Update Account **/ 
 // Show current user account details
 // GET to '/getSelf'
-app.get('/getSelf', (req, res) => {
+app.get('/getSelf', async (req, res) => {
   
   // Get username from token
-
-  // DB select user account details based on username
+  const username = req.query.username;
   
-  // Return user account details
+  // DB select user account based on 'username'
+  try {
+    const result = await connection.promise().execute(
+      "SELECT email, username, group_list FROM user WHERE username=?", 
+      [username]
+    )
+    
+    // Return user account details
+    return res.status(200).json({
+      success : true,
+      message : 'User details',
+      data : result[0][0]
+    });
+    
+  } catch(e) {
+    res.status(500).json({
+      success : false,
+      message : `Error: ${e}`,
+    });
+    return;
+  }
 });
 
 // Update current user account details
 // POST to '/updateSelf'
-app.post('/updateSelf', (req, res) => {
+app.post('/updateSelf', async (req, res) => {
+  // Assume email and password always given (previous value if unchanged)
   const {email, password} = req.body;
 
   // Get username from token
-
-  // Check if email is provided, it is valid 
+  const username = req.query.username;
+  
   // Check if password is provided, it is valid
 
-  // Check if either email or password is provided
-    // DB update user account details based on username
-      // if email is given, update email
-      // if password is given, update password
-  
-  // Return successful update
+  // DB update user account details based on username
+  try {
+    const result = await connection.promise().execute(
+      "UPDATE user SET email=?,password=? WHERE username=?", 
+      [email, password, username]
+    )
+
+    if (result[0].affectedRows === 0) {
+      res.status(500).json({
+        success : false,
+        message : 'Error: Updating user',
+      })
+      return;
+    }
+
+    // Return successful update
+    return res.status(200).json({
+      success : true,
+      message : 'User updated',
+    })
+  } catch (e) {
+    res.status(500).json({
+      success : false,
+      message : `Error:${e}`,
+    });
+    return;
+  }
 });
 /** End of U2: Update Account **/ 
 
@@ -122,9 +168,8 @@ app.post('/createGroup', async (req, res) => {
       res.status(500).json({
         success : false,
         message : 'Error: Issue creating user group',
-        data : result
-    })
-    return;
+      })
+      return;
     };
 
     // Return successful creation
@@ -163,9 +208,8 @@ app.post('/createUser', async (req, res) => {
       res.status(500).json({
         success : false,
         message : 'Error: Issue creating user',
-        data : result
-    })
-    return;
+      })
+      return;
     };
 
     // Return successful creation
