@@ -31,6 +31,9 @@ exports.checkLogin = async function (token) {
   const decoded = jwt.verify(token, process.env.JWT_SECRET)
   const [row, fields] = await connection.promise().query("SELECT * FROM user WHERE username = ?", [decoded.username])
   const user = row[0]
+  if (user === undefined) {
+    return false
+  }
 
   if (user.is_disabled === 1) {
     return false

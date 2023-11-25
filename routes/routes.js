@@ -13,7 +13,7 @@ router.route("/checkGroup").get(async (req, res, next) => {
 })
 
 router.route("/checkLogin").get(async (req, res, next) => {
-  const token = req.body.token
+  const token = req.query.token
   const result = await checkLogin(token)
   res.json(result)
 })
