@@ -11,7 +11,7 @@ exports.loginUser = catchAsyncErrors(async (req, res, next) => {
 
   //check if username and password is provided
   if (!username || !password) {
-    return next(new ErrorResponse("Please provide an username and password", 400))
+    return next(new ErrorResponse("Please provide a username and password", 400))
   }
 
   //find user in database
@@ -23,9 +23,12 @@ exports.loginUser = catchAsyncErrors(async (req, res, next) => {
   const user = row[0]
 
   //Use bcrypt to compare password
-  const isPasswordMatched = await bcrypt.compare(password, user.password)
-  if (!isPasswordMatched) {
-    return next(new ErrorResponse("Invalid password", 401))
+  //Check if node_env is production
+  if (process.env.NODE_ENV == "production") {
+    const isPasswordMatched = await bcrypt.compare(password, user.password)
+    if (!isPasswordMatched) {
+      return next(new ErrorResponse("Invalid username or password", 401))
+    }
   }
 
   //Check if user is disabled
@@ -94,7 +97,7 @@ const sendToken = (user, statusCode, res) => {
     success: true,
     token,
     group_list: user.group_list,
-    username: user.username,
+    username: user.username
   })
 }
 

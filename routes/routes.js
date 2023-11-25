@@ -5,8 +5,8 @@ const { isAuthenticatedUser } = require("../middleware/auth")
 const { checkGroup, checkLogin } = require("../controllers/controllers")
 
 router.route("/checkGroup").get(async (req, res, next) => {
-  const username = req.body.username
-  const group = req.body.group
+  const username = req.query.username
+  const group = req.query.group
 
   const result = await checkGroup(username, group)
   res.json(result)
