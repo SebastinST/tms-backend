@@ -24,7 +24,7 @@ exports.loginUser = catchAsyncErrors(async (req, res, next) => {
 
   //Use bcrypt to compare password
   //Check if node_env is production
-  if (process.env.NODE_ENV == "production") {
+  if (process.env.NODE_ENV === "production ") {
     const isPasswordMatched = await bcrypt.compare(password, user.password)
     if (!isPasswordMatched) {
       return next(new ErrorResponse("Invalid username or password", 401))
