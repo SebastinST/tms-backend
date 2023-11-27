@@ -40,7 +40,6 @@ exports.isAuthenticatedUser = catchAsyncErrors(async (req, res, next) => {
 // handling users roles
 exports.authorizeRoles = (...roles) => {
   return (req, res, next) => {
-    console.log(req)
     //User can have multiple groups delimited by ,{group},{group}. We need to split them into an array
     req.user.group_list = req.user.group_list.split(",")
     //if any of the user's groups is included in the roles array, then the user is authorized
