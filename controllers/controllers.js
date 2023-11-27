@@ -140,6 +140,12 @@ exports.createGroup = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorResponse("Group already exists", 400))
   }
 
+  //Regex to check if group name is alphanumeric and no space
+  const groupRegex = /^[a-zA-Z0-9]+$/
+  if (!groupRegex.test(group_name)) {
+    return next(new ErrorResponse("Group name must be alphanumeric and no space", 400))
+  }
+
   //Insert group into database one by one
   for (let i = 0; i < group_name_list.length; i++) {
     const result = await connection.promise().execute("INSERT INTO usergroups (group_name) VALUES (?)", [group_name_list[i]])
