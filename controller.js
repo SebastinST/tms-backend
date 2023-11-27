@@ -9,6 +9,14 @@ const bcrypt = require("bcryptjs");
 exports.login = async (req, res) => {
     const {username, password} = req.body;
 
+    if (!username || !password) {
+      res.status(400).json({
+          success : false,
+          message : 'Error: Invalid login credentials',
+      });
+      return;
+  };
+
     // DB select user account based on 'username'
     try {
         const result = await connection.promise().execute(
