@@ -243,13 +243,14 @@ exports.updateUser = catchAsyncErrors(async (req, res, next) => {
 
 // Update user email (user) => /userController/updateUserEmail/:username
 exports.updateUserEmail = catchAsyncErrors(async (req, res, next) => {
-  const [row, fields] = await connection.promise().query("SELECT * FROM user WHERE username = ?", [req.params.username])
+  const username = req.user.username
+  const [row, fields] = await connection.promise().query("SELECT * FROM user WHERE username = ?", [username])
   if (row.length === 0) {
     return next(new ErrorResponse("User not found", 404))
   }
 
   const user = row[0]
-  const result = await connection.promise().execute("UPDATE user SET email = ? WHERE username = ?", [req.body.email, req.params.username])
+  const result = await connection.promise().execute("UPDATE user SET email = ? WHERE username = ?", [req.body.email, username])
   if (result[0].affectedRows === 0) {
     return next(new ErrorResponse("Failed to update user", 500))
   }
@@ -262,7 +263,8 @@ exports.updateUserEmail = catchAsyncErrors(async (req, res, next) => {
 
 // Update user password (user) => /userController/updateUserPassword/:username
 exports.updateUserPassword = catchAsyncErrors(async (req, res, next) => {
-  const [row, fields] = await connection.promise().query("SELECT * FROM user WHERE username = ?", [req.params.username])
+  const username = req.user.username
+  const [row, fields] = await connection.promise().query("SELECT * FROM user WHERE username = ?", [username])
   if (row.length === 0) {
     return next(new ErrorResponse("User not found", 404))
   }
@@ -277,7 +279,7 @@ exports.updateUserPassword = catchAsyncErrors(async (req, res, next) => {
   //bcrypt new password with salt 10
   const hashedPassword = await bcrypt.hash(req.body.password, 10)
 
-  const result = await connection.promise().execute("UPDATE user SET password = ? WHERE username = ?", [hashedPassword, req.params.username])
+  const result = await connection.promise().execute("UPDATE user SET password = ? WHERE username = ?", [hashedPassword, username])
   if (result[0].affectedRows === 0) {
     return next(new ErrorResponse("Failed to update user", 500))
   }

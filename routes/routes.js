@@ -31,10 +31,10 @@ router
   .route("/updateUser/:username")
   .put(isAuthenticatedUser, authorizeRoles("admin"), updateUser);
 router
-  .route("/updateUserEmail/:username")
+  .route("/updateUserEmail/")
   .put(isAuthenticatedUser, updateUserEmail);
 router
-  .route("/updateUserPassword/:username")
+  .route("/updateUserPassword/")
   .put(isAuthenticatedUser, updateUserPassword);
 
 router.route("/checkGroup").get(async (req, res, next) => {
