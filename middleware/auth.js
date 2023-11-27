@@ -2,7 +2,15 @@
 const jwt = require("jsonwebtoken")
 const catchAsyncErrors = require("./catchAsyncErrors")
 const ErrorHandler = require("../utils/errorHandler")
-const connection = require("../config/database")
+const mysql = require("mysql2")
+
+//Setting up database connection
+const connection = mysql.createConnection({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME
+})
 
 exports.isAuthenticatedUser = catchAsyncErrors(async (req, res, next) => {
   let token
