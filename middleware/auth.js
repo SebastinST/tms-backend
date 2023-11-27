@@ -14,8 +14,12 @@ exports.isAuthenticatedUser = catchAsyncErrors(async (req, res, next) => {
   if (token === "null" || !token) {
     return next(new ErrorHandler("Login first to access this resource.", 401))
   }
-
-  const decoded = jwt.verify(token, process.env.JWT_SECRET)
+  let decoded
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET)
+  } catch (err) {
+    return next(new ErrorHandler("Login first to access this resource.", 401))
+  }
   const [row, fields] = await connection.promise().query("SELECT * FROM user WHERE username = ?", [decoded.username])
   req.user = row[0]
 

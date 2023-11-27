@@ -1,4 +1,4 @@
-const connection = require("../config/database")
+/*const connection = require("../config/database")
 const catchAsyncErrors = require("../middleware/catchAsyncErrors")
 const ErrorResponse = require("../utils/errorHandler")
 
@@ -42,3 +42,4 @@ async function checkGroup(username, group) {
   }
   return true
 }
+*/

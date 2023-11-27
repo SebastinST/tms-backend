@@ -1,4 +1,4 @@
-const mysql = require("mysql2")
+/*const mysql = require("mysql2")
 
 const connectDatabase = mysql.createConnection({
   host: process.env.DB_HOST,
@@ -8,4 +8,4 @@ const connectDatabase = mysql.createConnection({
 })
 if (connectDatabase) console.log(`MySQL Database connected with host: ${process.env.DB_HOST}`)
 
-module.exports = connectDatabase
+module.exports = connectDatabase*/

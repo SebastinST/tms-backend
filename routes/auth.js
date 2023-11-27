@@ -1,4 +1,4 @@
-const express = require("express")
+/*const express = require("express")
 const router = express.Router()
 
 const { loginUser, logout, registerUser } = require("../controllers/authController")
@@ -11,3 +11,4 @@ router.route("/register").post(isAuthenticatedUser, authorizeRoles("admin"), reg
 router.route("/createGroup").post(isAuthenticatedUser, authorizeRoles("admin"), createGroup)
 
 module.exports = router
+*/

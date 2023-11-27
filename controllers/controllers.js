@@ -1,8 +1,17 @@
-const connection = require("../config/database")
 const catchAsyncErrors = require("../middleware/catchAsyncErrors")
 const ErrorResponse = require("../utils/errorHandler")
 const bcrypt = require("bcryptjs")
 const jwt = require("jsonwebtoken")
+const mysql = require("mysql2")
+
+//Setting up database connection
+const connection = mysql.createConnection({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME
+})
+if (connection) console.log(`MySQL Database connected with host: ${process.env.DB_HOST}`)
 
 // checkGroup(username, group) to check if a user is in a group
 exports.checkGroup = async function (username, group) {
@@ -65,12 +74,9 @@ exports.loginUser = catchAsyncErrors(async (req, res, next) => {
   const user = row[0]
 
   //Use bcrypt to compare password
-  //Check if node_env is production
-  if (process.env.NODE_ENV === "production ") {
-    const isPasswordMatched = await bcrypt.compare(password, user.password)
-    if (!isPasswordMatched) {
-      return next(new ErrorResponse("Invalid username or password", 401))
-    }
+  const isPasswordMatched = await bcrypt.compare(password, user.password)
+  if (!isPasswordMatched) {
+    return next(new ErrorResponse("Invalid username or password", 401))
   }
 
   //Check if user is disabled
@@ -272,7 +278,7 @@ exports.updateUserPassword = catchAsyncErrors(async (req, res, next) => {
   //bcrypt new password with salt 10
   const hashedPassword = await bcrypt.hash(req.body.password, 10)
 
-  const result = await connection.promise().execute("UPDATE user SET password = ? WHERE username = ?", [req.body.password, req.params.username])
+  const result = await connection.promise().execute("UPDATE user SET password = ? WHERE username = ?", [hashedPassword, req.params.username])
   if (result[0].affectedRows === 0) {
     return next(new ErrorResponse("Failed to update user", 500))
   }

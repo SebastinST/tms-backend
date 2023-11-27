@@ -1,4 +1,4 @@
-const express = require("express")
+/*const express = require("express")
 const router = express.Router()
 
 const { getUsers, getUser, toggleUserStatus, updateUser, updateUserEmail, updateUserPassword } = require("../controllers/userController")
@@ -12,3 +12,4 @@ router.route("/updateUserEmail/:username").put(isAuthenticatedUser, updateUserEm
 router.route("/updateUserPassword/:username").put(isAuthenticatedUser, updateUserPassword)
 
 module.exports = router
+*/

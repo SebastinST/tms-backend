@@ -1,4 +1,4 @@
-const connection = require("../config/database")
+/*const connection = require("../config/database")
 const catchAsyncErrors = require("../middleware/catchAsyncErrors")
 const ErrorResponse = require("../utils/errorHandler")
 const jwt = require("jsonwebtoken")
@@ -106,3 +106,4 @@ const getJwtToken = user => {
     expiresIn: process.env.JWT_EXPIRES_TIME
   })
 }
+*/

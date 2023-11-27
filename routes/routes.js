@@ -5,7 +5,7 @@ const { isAuthenticatedUser, authorizeRoles } = require("../middleware/auth")
 const { checkGroup, checkLogin, loginUser, logout, registerUser, getUsers, getUser, toggleUserStatus, updateUser, updateUserEmail, updateUserPassword, createGroup } = require("../controllers/controllers")
 
 router.route("/login").post(loginUser)
-router.route("/logout").get(isAuthenticatedUser, logout)
+router.route("/_logout").get(isAuthenticatedUser, logout)
 router.route("/register").post(isAuthenticatedUser, authorizeRoles("admin"), registerUser)
 router.route("/createGroup").post(isAuthenticatedUser, authorizeRoles("admin"), createGroup)
 

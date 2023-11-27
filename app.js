@@ -16,14 +16,6 @@ process.on("uncaughtException", err => {
   process.exit(1)
 })
 
-//Setting up database connection
-const connection = mysql.createConnection({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME
-})
-if (connection) console.log(`MySQL Database connected with host: ${process.env.DB_HOST}`)
 const errorMiddleware = require("./middleware/errors")
 const ErrorHandler = require("./utils/errorHandler")
 
