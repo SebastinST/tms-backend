@@ -115,7 +115,6 @@ exports.registerUser = catchAsyncErrors(async (req, res, next) => {
 
   //Bcrypt password with salt 10
   const hashedPassword = await bcrypt.hash(password, 10)
-
   const result = await connection.promise().execute("INSERT INTO user (username, password, email, `group_list`, is_disabled) VALUES (?,?,?,?,?)", [username, hashedPassword, email, group_list, 0])
   if (result[0].affectedRows === 0) {
     return next(new ErrorResponse("Failed to create user", 500))
@@ -269,10 +268,10 @@ exports.updateUserPassword = catchAsyncErrors(async (req, res, next) => {
   }
 
   const user = row[0]
-  //Compare old password with the password in database
-  const isPasswordMatched = await bcrypt.compare(req.body.old_password, user.password)
-  if (!isPasswordMatched) {
-    return next(new ErrorResponse("Invalid password", 401))
+  //password constraint check
+  const passwordRegex = /^(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,10}$/
+  if (!passwordRegex.test(req.body.password)) {
+    return next(new ErrorResponse("Password must be 8-10 characters long, contain at least one number, one letter and one special character", 400))
   }
 
   //bcrypt new password with salt 10
