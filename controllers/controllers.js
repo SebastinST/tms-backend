@@ -45,3 +45,265 @@ exports.checkLogin = catchAsyncErrors(async function (token) {
   }
   return true
 })
+
+// Login a user => /login
+exports.loginUser = catchAsyncErrors(async (req, res, next) => {
+  //get username and password from request body
+  const { username, password } = req.body
+
+  //check if username and password is provided
+  if (!username || !password) {
+    return next(new ErrorResponse("Please provide a username and password", 400))
+  }
+
+  //find user in database
+  const [row, fields] = await connection.promise().query("SELECT * FROM user WHERE username = ?", [username])
+  if (row.length === 0) {
+    return next(new ErrorResponse("User not found", 401))
+  }
+  //get user from row
+  const user = row[0]
+
+  //Use bcrypt to compare password
+  //Check if node_env is production
+  if (process.env.NODE_ENV === "production ") {
+    const isPasswordMatched = await bcrypt.compare(password, user.password)
+    if (!isPasswordMatched) {
+      return next(new ErrorResponse("Invalid username or password", 401))
+    }
+  }
+
+  //Check if user is disabled
+  if (user.is_disabled === 1) {
+    return next(new ErrorResponse("User is disabled", 401))
+  }
+
+  //Send token
+  sendToken(user, 200, res)
+})
+
+// Logout a user => /_logout
+exports.logout = catchAsyncErrors(async (req, res, next) => {
+  //Set cookie to null so that it will expire and user will not be able to access protected routes
+  res.cookie("token", null, {
+    expires: new Date(Date.now()),
+    httpOnly: true
+  })
+
+  //Send response
+  res.status(200).json({
+    success: true,
+    message: "Logged out"
+  })
+})
+
+// Create a user => /register
+exports.registerUser = catchAsyncErrors(async (req, res, next) => {
+  const { username, password, email, group_list } = req.body
+
+  //We need to check for password constraint, minimum character is 8 and maximum character is 10. It should include alphanumeric, number and special character. We do not care baout uppercase and lowercase.
+  const passwordRegex = /^(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,10}$/
+  if (!passwordRegex.test(password)) {
+    return next(new ErrorResponse("Password must be 8-10 characters long, contain at least one number, one letter and one special character", 400))
+  }
+
+  //Bcrypt password with salt 10
+  const hashedPassword = await bcrypt.hash(password, 10)
+
+  const result = await connection.promise().execute("INSERT INTO user (username, password, email, `group_list`, is_disabled) VALUES (?,?,?,?,?)", [username, hashedPassword, email, group_list, 0])
+  if (result[0].affectedRows === 0) {
+    return next(new ErrorResponse("Failed to create user", 500))
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "User created successfully"
+  })
+})
+
+// Create a group => /groupController/createGroup
+exports.createGroup = catchAsyncErrors(async (req, res, next) => {
+  //Check if user is authorized to create group
+  const { group_name } = req.body
+
+  //Check if group already exists
+  const [row, fields] = await connection.promise().query("SELECT * FROM usergroups WHERE group_name = ?", [group_name])
+  if (row.length !== 0) {
+    return next(new ErrorResponse("Group already exists", 400))
+  }
+
+  //Insert group into database
+  const result = await connection.promise().execute("INSERT INTO usergroups (group_name) VALUES (?)", [group_name])
+  if (result[0].affectedRows === 0) {
+    return next(new ErrorResponse("Failed to create group", 500))
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Group created successfully"
+  })
+})
+
+// Get all users => /userController/getUsers
+exports.getUsers = catchAsyncErrors(async (req, res, next) => {
+  const [rows, fields] = await connection.promise().query("SELECT * FROM user")
+  res.status(200).json({
+    success: true,
+    data: rows
+  })
+})
+
+// Get a user => /userController/getUser/:username
+exports.getUser = catchAsyncErrors(async (req, res, next) => {
+  const [row, fields] = await connection.promise().query("SELECT * FROM user WHERE username = ?", [req.params.username])
+  if (row.length === 0) {
+    return next(new ErrorResponse("User not found", 404))
+  }
+  res.status(200).json({
+    success: true,
+    data: row[0]
+  })
+})
+
+// Toggle user status => /userController/toggleUserStatus/:username
+exports.toggleUserStatus = catchAsyncErrors(async (req, res, next) => {
+  const [row, fields] = await connection.promise().query("SELECT * FROM user WHERE username = ?", [req.params.username])
+  if (row.length === 0) {
+    return next(new ErrorResponse("User not found", 404))
+  }
+
+  const user = row[0]
+  //new status should be flip of current status
+  const newStatus = user.is_disabled === 1 ? 0 : 1
+  const result = await connection.promise().execute("UPDATE user SET is_disabled = ? WHERE username = ?", [newStatus, req.params.username])
+  if (result[0].affectedRows === 0) {
+    return next(new ErrorResponse("Failed to update user", 500))
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "User updated successfully"
+  })
+})
+
+// Update a user (admin) => /userController/updateUser/:username
+exports.updateUser = catchAsyncErrors(async (req, res, next) => {
+  const [row, fields] = await connection.promise().query("SELECT * FROM user WHERE username = ?", [req.params.username])
+  if (row.length === 0) {
+    return next(new ErrorResponse("User not found", 404))
+  }
+
+  const user = row[0]
+
+  //We need to check for password constraint, minimum character is 8 and maximum character is 10. It should include alphanumeric, number and special character. We do not care baout uppercase and lowercase.
+  const passwordRegex = /^(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,10}$/
+  if (!passwordRegex.test(req.body.password)) {
+    return next(new ErrorResponse("Password must be 8-10 characters long, contain at least one number, one letter and one special character", 400))
+  }
+
+  //bcrypt password with salt 10
+  const hashedPassword = await bcrypt.hash(req.body.password, 10)
+
+  //the fields are optional to update, so we need to build the query dynamically
+  let query = "UPDATE user SET "
+  let values = []
+  //Updatable fields are email, password, groups.
+  if (req.body.email) {
+    query += "email = ?, "
+    values.push(req.body.email)
+  }
+  if (req.body.password) {
+    query += "password = ?, "
+    values.push(hashedPassword)
+  }
+  if (req.body.group) {
+    query += "`group_list` = ?, "
+    values.push(req.body.group)
+  }
+  //remove the last comma and space
+  query = query.slice(0, -2)
+  //add the where clause
+  query += " WHERE username = ?"
+  values.push(req.params.username)
+  const result = await connection.promise().execute(query, values)
+  if (result[0].affectedRows === 0) {
+    return next(new ErrorResponse("Failed to update user", 500))
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "User updated successfully"
+  })
+})
+
+// Update user email (user) => /userController/updateUserEmail/:username
+exports.updateUserEmail = catchAsyncErrors(async (req, res, next) => {
+  const [row, fields] = await connection.promise().query("SELECT * FROM user WHERE username = ?", [req.params.username])
+  if (row.length === 0) {
+    return next(new ErrorResponse("User not found", 404))
+  }
+
+  const user = row[0]
+  const result = await connection.promise().execute("UPDATE user SET email = ? WHERE username = ?", [req.body.email, req.params.username])
+  if (result[0].affectedRows === 0) {
+    return next(new ErrorResponse("Failed to update user", 500))
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "User updated successfully"
+  })
+})
+
+// Update user password (user) => /userController/updateUserPassword/:username
+exports.updateUserPassword = catchAsyncErrors(async (req, res, next) => {
+  const [row, fields] = await connection.promise().query("SELECT * FROM user WHERE username = ?", [req.params.username])
+  if (row.length === 0) {
+    return next(new ErrorResponse("User not found", 404))
+  }
+
+  const user = row[0]
+  //Compare old password with the password in database
+  const isPasswordMatched = await bcrypt.compare(req.body.old_password, user.password)
+  if (!isPasswordMatched) {
+    return next(new ErrorResponse("Invalid password", 401))
+  }
+
+  //bcrypt new password with salt 10
+  const hashedPassword = await bcrypt.hash(req.body.password, 10)
+
+  const result = await connection.promise().execute("UPDATE user SET password = ? WHERE username = ?", [req.body.password, req.params.username])
+  if (result[0].affectedRows === 0) {
+    return next(new ErrorResponse("Failed to update user", 500))
+  }
+
+  sendToken(user, 200, res)
+})
+
+// Create and send token and save in cookie
+const sendToken = (user, statusCode, res) => {
+  // Create JWT Token
+  const token = getJwtToken(user)
+  // Options for cookie
+  const options = {
+    expires: new Date(Date.now() + process.env.COOKIE_EXPIRES_TIME * 24 * 60 * 60 * 1000),
+    httpOnly: true
+  }
+
+  // if(process.env.NODE_ENV === 'production ') {
+  //     options.secure = true;
+  // }
+
+  res.status(statusCode).cookie("token", token, options).json({
+    success: true,
+    token,
+    group_list: user.group_list,
+    username: user.username
+  })
+}
+
+const getJwtToken = user => {
+  return jwt.sign({ username: user.username }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_TIME
+  })
+}

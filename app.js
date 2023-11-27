@@ -2,9 +2,9 @@ const express = require("express")
 const cors = require("cors")
 const app = express()
 app.use(cors())
+const mysql = require("mysql2")
 
 const dotenv = require("dotenv")
-//const cookieParser = require("cookie-parser")
 
 //Setting up config.env file variable
 dotenv.config({ path: "./config/config.env" })
@@ -17,24 +17,27 @@ process.on("uncaughtException", err => {
 })
 
 //Setting up database connection
-const connection = require("./config/database")
+const connection = mysql.createConnection({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME
+})
+if (connection) console.log(`MySQL Database connected with host: ${process.env.DB_HOST}`)
 const errorMiddleware = require("./middleware/errors")
 const ErrorHandler = require("./utils/errorHandler")
 
 //Setting up body parser
 app.use(express.json())
 
-//Setting up cookie parser
-//app.use(cookieParser())
-
 //Importing routes
-const auth = require("./routes/auth")
-const user = require("./routes/user")
+//const auth = require("./routes/auth")
+//const user = require("./routes/user")
 const routes = require("./routes/routes")
 
 //Mounting routes
-app.use("/", auth)
-app.use("/userController", user)
+//app.use("/", auth)
+//app.use("/userController", user)
 app.use("/controller", routes)
 
 //Handle unhandled routes

@@ -2,7 +2,7 @@ const express = require("express")
 const router = express.Router()
 
 const { loginUser, logout, registerUser } = require("../controllers/authController")
-const { isAuthenticatedUser, authorizeRoles, checkGroup } = require("../middleware/auth")
+const { isAuthenticatedUser, authorizeRoles } = require("../middleware/auth")
 const { createGroup } = require("../controllers/groupController")
 
 router.route("/login").post(loginUser)
