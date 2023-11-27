@@ -23,12 +23,17 @@ exports.checkGroup = async function (username, group) {
   return true
 }
 
-exports.checkLogin = async function (token) {
+exports.checkLogin = catchAsyncErrors(async function (token) {
   if (token === "null" || !token) {
     return false
   }
+  let decoded
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET)
+  } catch (err) {
+    return false
+  }
 
-  const decoded = jwt.verify(token, process.env.JWT_SECRET)
   const [row, fields] = await connection.promise().query("SELECT * FROM user WHERE username = ?", [decoded.username])
   const user = row[0]
   if (user === undefined) {
@@ -39,4 +44,4 @@ exports.checkLogin = async function (token) {
     return false
   }
   return true
-}
+})
