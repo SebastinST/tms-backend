@@ -303,6 +303,9 @@ exports.updateUserPassword = catchAsyncErrors(async (req, res, next) => {
 // Get all groups in usergroups table => /controller/getGroups
 exports.getGroups = catchAsyncErrors(async (req, res, next) => {
   const [rows, fields] = await connection.promise().query("SELECT * FROM usergroups")
+  if (rows.length === 0) {
+    return next(new ErrorResponse("No groups found", 404))
+  }
   res.status(200).json({
     success: true,
     data: rows
