@@ -67,3 +67,26 @@ exports.authorizedGroups = (...roles) => {
     next();
   }
 }
+
+// Specification checkingGroup callback function
+    // Exposes Checkgroup to route Checkgroup
+exports.checkingGroup = async (req, res) => {
+    const username = req.body.userid;
+    const group = req.body.groupname;
+  
+    const result = await Checkgroup(username, group);
+    res.json(result);
+}
+
+// Actual Checkgroup function that returns a value to indicate if a user is in a group
+async function Checkgroup(userid, groupname) {
+    const result = await connection.promise().query(
+        "SELECT * FROM user WHERE username = ?", 
+        [userid]
+    )
+    if (result[0][0]) {
+        return result[0][0].group_list.includes(groupname);
+    } else {
+        return false;
+    } 
+}

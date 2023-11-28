@@ -13,7 +13,7 @@ const {
     updateUser
 } = require("./controller");
 
-const { isUserValid, authorizedGroups } = require("./auth")
+const { isUserValid, authorizedGroups, checkingGroup } = require("./auth")
 
 // All user routes
 router.route("/login").post(login);
@@ -27,5 +27,8 @@ router.route("/createUser").post(isUserValid, authorizedGroups("admin"), createU
 router.route("/getAllUsers").get(isUserValid, authorizedGroups("admin"), getAllUsers);
 router.route("/getAllGroups").get(isUserValid, authorizedGroups("admin"), getAllGroups);
 router.route("/updateUser").post(isUserValid, authorizedGroups("admin"), updateUser);
+
+// Specification route
+router.route("/Checkgroup").post(isUserValid, checkingGroup);
 
 module.exports = router;
