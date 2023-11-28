@@ -2,7 +2,7 @@ const express = require("express")
 const router = express.Router()
 
 const { isAuthenticatedUser, authorizeRoles } = require("../middleware/auth")
-const { checkGroup, checkLogin, loginUser, logout, registerUser, getUsers, getUser, toggleUserStatus, updateUser, updateUserEmail, updateUserPassword, createGroup, getGroups } = require("../controllers/controllers")
+const { Checkgroup, checkLogin, loginUser, logout, registerUser, getUsers, getUser, toggleUserStatus, updateUser, updateUserEmail, updateUserPassword, createGroup, getGroups } = require("../controllers/controllers")
 
 router.route("/login").post(loginUser)
 router.route("/_logout").get(isAuthenticatedUser, logout)
@@ -17,11 +17,11 @@ router.route("/updateUserEmail/").put(isAuthenticatedUser, updateUserEmail)
 router.route("/updateUserPassword/").put(isAuthenticatedUser, updateUserPassword)
 router.route("/getGroups").get(isAuthenticatedUser, getGroups)
 
-router.route("/checkGroup").get(async (req, res, next) => {
-  const username = req.query.username
-  const group = req.query.group
+router.route("/checkGroup").get(isAuthenticatedUser, async (req, res, next) => {
+  const username = req.user.username
+  const group = req.body.group
 
-  const result = await checkGroup(username, group)
+  const result = await Checkgroup(username, group)
   res.json(result)
 })
 

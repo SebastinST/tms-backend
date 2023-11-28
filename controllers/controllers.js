@@ -14,9 +14,9 @@ const connection = mysql.createConnection({
 if (connection) console.log(`MySQL Database connected with host: ${process.env.DB_HOST}`)
 
 // checkGroup(username, group) to check if a user is in a group
-exports.checkGroup = async function (username, group) {
+exports.Checkgroup = async function (userid, groupname) {
   //get user from database
-  const [row, fields] = await connection.promise().query("SELECT * FROM user WHERE username = ?", [username])
+  const [row, fields] = await connection.promise().query("SELECT * FROM user WHERE username = ?", [userid])
   if (row.length === 0) {
     return false
   }
@@ -25,7 +25,7 @@ exports.checkGroup = async function (username, group) {
   user.group_list = user.group_list.split(",")
   //if any of the user's groups is included in the roles array, then the user is authorized. The group has to match exactly
   //for each group in the group array, check match exact as group parameter
-  authorised = user.group_list.includes(group)
+  authorised = user.group_list.includes(groupname)
   if (!authorised) {
     return false
   }
@@ -151,6 +151,8 @@ exports.createGroup = catchAsyncErrors(async (req, res, next) => {
   //Insert group into database one by one
   for (let i = 0; i < group_name_list.length; i++) {
     const result = await connection.promise().execute("INSERT INTO usergroups (group_name) VALUES (?)", [group_name_list[i]])
+
+    //@TODO:
     if (result[0].affectedRows === 0) {
       return next(new ErrorResponse("Failed to create group", 500))
     }
