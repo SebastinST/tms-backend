@@ -23,9 +23,12 @@ exports.Checkgroup = async function (userid, groupname) {
   const user = row[0]
   //User can have multiple groups delimited by ,{group},{group}. We need to split them into an array
   user.group_list = user.group_list.split(",")
+  console.log(user.group_list)
+  console.log(groupname)
   //if any of the user's groups is included in the roles array, then the user is authorized. The group has to match exactly
   //for each group in the group array, check match exact as group parameter
   authorised = user.group_list.includes(groupname)
+  console.log("authorised: " + authorised)
   if (!authorised) {
     return false
   }

@@ -30,6 +30,7 @@ exports.isAuthenticatedUser = catchAsyncErrors(async (req, res, next) => {
   }
   const [row, fields] = await connection.promise().query("SELECT * FROM user WHERE username = ?", [decoded.username])
   req.user = row[0]
+  req.token = token
 
   if (req.user.is_disabled === 1) {
     return next(new ErrorHandler("User is disabled", 401))
