@@ -129,31 +129,40 @@ exports.getSelf = async (req, res) => {
 // Update current user account details
 // POST to '/updateSelf'
 exports.updateSelf = async (req, res) => {
-    // Assume email and password always given (previous value if unchanged)
+    // Assume email always given (previous value if unchanged)
     const {password, email} = req.body;
   
     // Get username from token
     const username = req.user.username;
     
-    // Check if password is provided, 8 > character > 10 and only include alphanumeric, number and special character
-    const passwordRegex = /^(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,10}$/
-    if (!passwordRegex.test(password)) {
-      res.status(400).json({
-        success : false,
-        message : 'Error: Password must be 8-10 characters long, contain at least one number, one letter and one special character',
-      })
-      return;
-    }
-
-    // Encrypt valid password with salt 10
-    const hashedPassword = await bcrypt.hash(password, 10);
-  
     // DB update user account details based on username
     try {
-      const result = await connection.promise().execute(
-        "UPDATE user SET password=?,email=? WHERE username=?", 
-        [hashedPassword, email, username]
-      )
+
+      // Check if password is provided, 8 > character > 10 and only include alphanumeric, number and special character
+      if (password) {
+        const passwordRegex = /^(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,10}$/
+        if (!passwordRegex.test(password)) {
+          res.status(400).json({
+            success : false,
+            message : 'Error: Password must be 8-10 characters long, contain at least one number, one letter and one special character',
+          })
+          return;
+        }
+      
+        // Encrypt valid password with salt 10
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        result = await connection.promise().execute(
+          "UPDATE user SET password=?,email=? WHERE username=?", 
+          [hashedPassword, email, username]
+        )
+      } else {
+        result = await connection.promise().execute(
+          "UPDATE user SET email=? WHERE username=?", 
+          [email, username]
+        )
+      }
+      
   
       if (result[0].affectedRows === 0) {
         res.status(500).json({
