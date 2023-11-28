@@ -8,7 +8,12 @@ const bcrypt = require("bcryptjs");
 // POST to '/login'
 exports.login = async (req, res) => {
     const {username, password} = req.body;
-
+    
+    // Add optional code to get hashed password for me 
+    // to reset in DB if I forget
+    // const hashedPassword = await bcrypt.hash("temp1234$", 10);
+    // console.log(hashedPassword);
+    
     if (!username || !password) {
       res.status(400).json({
           success : false,
