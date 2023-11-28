@@ -23,12 +23,9 @@ exports.Checkgroup = async function (userid, groupname) {
   const user = row[0]
   //User can have multiple groups delimited by ,{group},{group}. We need to split them into an array
   user.group_list = user.group_list.split(",")
-  console.log(user.group_list)
-  console.log(groupname)
   //if any of the user's groups is included in the roles array, then the user is authorized. The group has to match exactly
   //for each group in the group array, check match exact as group parameter
   authorised = user.group_list.includes(groupname)
-  console.log("authorised: " + authorised)
   if (!authorised) {
     return false
   }
@@ -215,17 +212,13 @@ exports.updateUser = catchAsyncErrors(async (req, res, next) => {
   if (row.length === 0) {
     return next(new ErrorResponse("User not found", 404))
   }
-
   const user = row[0]
-
   //We need to check for password constraint, minimum character is 8 and maximum character is 10. It should include alphanumeric, number and special character. We do not care baout uppercase and lowercase.
   const passwordRegex = /^(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,10}$/
-  if (!passwordRegex.test(req.body.password)) {
+  console.log(!passwordRegex.test(req.body.password))
+  if (req.body.password && !passwordRegex.test(req.body.password)) {
     return next(new ErrorResponse("Password must be 8-10 characters long, contain at least one number, one letter and one special character", 400))
   }
-
-  //bcrypt password with salt 10
-  const hashedPassword = await bcrypt.hash(req.body.password, 10)
 
   //the fields are optional to update, so we need to build the query dynamically
   let query = "UPDATE user SET "
@@ -237,6 +230,8 @@ exports.updateUser = catchAsyncErrors(async (req, res, next) => {
   }
   if (req.body.password) {
     query += "password = ?, "
+    //bcrypt password with salt 10
+    const hashedPassword = await bcrypt.hash(req.body.password, 10)
     values.push(hashedPassword)
   }
   if (req.body.group) {
