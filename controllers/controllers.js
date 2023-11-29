@@ -173,9 +173,10 @@ exports.getUsers = catchAsyncErrors(async (req, res, next) => {
   })
 })
 
-// Get a user => /userController/getUser/:username
+// Get a user => /userController/getUser
 exports.getUser = catchAsyncErrors(async (req, res, next) => {
-  const [row, fields] = await connection.promise().query("SELECT * FROM user WHERE username = ?", [req.params.username])
+  const username = req.user.username
+  const [row, fields] = await connection.promise().query("SELECT * FROM user WHERE username = ?", [username])
   if (row.length === 0) {
     return next(new ErrorResponse("User not found", 404))
   }
@@ -215,7 +216,6 @@ exports.updateUser = catchAsyncErrors(async (req, res, next) => {
   const user = row[0]
   //We need to check for password constraint, minimum character is 8 and maximum character is 10. It should include alphanumeric, number and special character. We do not care baout uppercase and lowercase.
   const passwordRegex = /^(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,10}$/
-  console.log(!passwordRegex.test(req.body.password))
   if (req.body.password && !passwordRegex.test(req.body.password)) {
     return next(new ErrorResponse("Password must be 8-10 characters long, contain at least one number, one letter and one special character", 400))
   }

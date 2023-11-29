@@ -10,7 +10,7 @@ router.route("/register").post(isAuthenticatedUser, authorizeRoles("admin"), reg
 router.route("/createGroup").post(isAuthenticatedUser, authorizeRoles("admin"), createGroup)
 
 router.route("/getUsers").get(isAuthenticatedUser, getUsers)
-router.route("/getUser/:username").get(isAuthenticatedUser, getUser)
+router.route("/getUser").get(isAuthenticatedUser, getUser)
 router.route("/toggleUserStatus/:username").put(isAuthenticatedUser, authorizeRoles("admin"), toggleUserStatus)
 router.route("/updateUser/:username").put(isAuthenticatedUser, authorizeRoles("admin"), updateUser)
 router.route("/updateUserEmail/").put(isAuthenticatedUser, updateUserEmail)
