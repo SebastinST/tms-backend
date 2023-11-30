@@ -174,7 +174,7 @@ exports.updateSelf = async (req, res) => {
       // Return successful update
       return res.status(200).json({
         success : true,
-        message : `Success: User '${username}' details updated`,
+        message : `Success: Your details have been updated`,
       })
     } catch (e) {
       res.status(500).json({
