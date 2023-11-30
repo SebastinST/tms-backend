@@ -10,7 +10,8 @@ const {
     createUser,
     getAllUsers,
     getAllGroups,
-    updateUser
+    updateUser,
+    toggleUserStatus
 } = require("./controller");
 
 const { isUserValid, authorizedGroups, checkingGroup } = require("./auth")
@@ -27,6 +28,7 @@ router.route("/createUser").post(isUserValid, authorizedGroups("admin"), createU
 router.route("/getAllUsers").get(isUserValid, authorizedGroups("admin"), getAllUsers);
 router.route("/getAllGroups").get(isUserValid, authorizedGroups("admin"), getAllGroups);
 router.route("/updateUser").post(isUserValid, authorizedGroups("admin"), updateUser);
+router.route("/toggleUserStatus").post(isUserValid, authorizedGroups("admin"), toggleUserStatus);
 
 // Specification route
 router.route("/Checkgroup").post(isUserValid, checkingGroup);
