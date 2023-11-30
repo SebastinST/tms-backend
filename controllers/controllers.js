@@ -267,6 +267,9 @@ exports.updateUser = catchAsyncErrors(async (req, res, next) => {
   if (req.body.email) {
     query += "email = ?, ";
     values.push(req.body.email);
+  } else if (req.body.email === undefined) {
+    query += "email = ?, ";
+    values.push(null);
   }
   if (req.body.password) {
     query += "password = ?, ";
