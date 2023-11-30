@@ -65,8 +65,7 @@ exports.login = async (req, res) => {
 
         res.status(200).cookie("token", token, options).json({
             success: true,
-            token,
-            group_list: user.group_list
+            token
         })
         
     } catch(e) {
@@ -354,27 +353,34 @@ exports.getAllGroups = async (req, res) => {
 // POST to '/updateUser'
 exports.updateUser = async (req, res) => {
     // Assume all fields given (previous value if unchanged)
-    const {username, email, password, group_list, is_disabled} = req.body;
-  
-    // Check if password is provided, 8 > character > 10 and only include alphanumeric, number and special character
-    const passwordRegex = /^(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,10}$/
-    if (!passwordRegex.test(password)) {
-      res.status(400).json({
-        success : false,
-        message : 'Error: Password must be 8-10 characters long, contain at least one number, one letter and one special character',
-      })
-      return;
-    }
-
-    // Encrypt valid password with salt 10
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const {username, email, password, group_list} = req.body;
 
     // DB update user account details based on username
     try {
-      const result = await connection.promise().execute(
-        "UPDATE user SET email=?,password=?,group_list=?,is_disabled=? WHERE username=?", 
-        [email, hashedPassword, group_list, is_disabled, username]
-      )
+      if (password) {
+        // Check if password is provided, 8 > character > 10 and only include alphanumeric, number and special character
+        const passwordRegex = /^(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,10}$/
+        if (!passwordRegex.test(password)) {
+          res.status(400).json({
+            success : false,
+            message : 'Error: Password must be 8-10 characters long, contain at least one number, one letter and one special character',
+          })
+        return;
+        }
+
+        // Encrypt valid password with salt 10
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        result = await connection.promise().execute(
+          "UPDATE user SET email=?,password=?,group_list=? WHERE username=?", 
+          [email, hashedPassword, group_list, username]
+        )
+      } else {
+        result = await connection.promise().execute(
+          "UPDATE user SET email=?,group_list=? WHERE username=?", 
+          [email, group_list, username]
+        )
+      }
   
       if (result[0].affectedRows === 0) {
         res.status(500).json({
@@ -396,5 +402,37 @@ exports.updateUser = async (req, res) => {
       });
       return;
     }
+};
+
+// POST to '/toggleUserStatus'
+exports.toggleUserStatus = async (req, res) => {
+  const {username, is_disabled} = req.body;
+
+  try {
+    result = await connection.promise().execute(
+      "UPDATE user SET is_disabled=? WHERE username=?", 
+      [is_disabled, username]
+    )
+  
+    if (result[0].affectedRows === 0) {
+      res.status(500).json({
+        success : false,
+        message : 'Error: Updating user',
+      })
+      return;
+    }
+  
+    // Return successful update
+    return res.status(200).json({
+      success : true,
+      message : `Success: User '${username}' details updated`,
+    })
+  } catch (e) {
+    res.status(500).json({
+      success : false,
+      message : e,
+    });
+    return;
+  }
 };
 /* End of A1: Manage Accounts */ 
