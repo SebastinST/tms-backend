@@ -425,7 +425,7 @@ exports.toggleUserStatus = async (req, res) => {
     // Return successful update
     return res.status(200).json({
       success : true,
-      message : `Success: User '${username}' details updated`,
+      message : `Success: User '${username}' status changed`,
     })
   } catch (e) {
     res.status(500).json({
