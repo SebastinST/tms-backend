@@ -14,7 +14,7 @@ const {
     toggleUserStatus
 } = require("./controller");
 
-const { isUserValid, authorizedGroups, checkingGroup } = require("./auth")
+const { isUserValid, authorizedGroups, protectAdmin, checkingGroup } = require("./auth")
 
 // All user routes
 router.route("/login").post(login);
@@ -27,8 +27,10 @@ router.route("/createGroup").post(isUserValid, authorizedGroups("admin"), create
 router.route("/createUser").post(isUserValid, authorizedGroups("admin"), createUser);
 router.route("/getAllUsers").get(isUserValid, authorizedGroups("admin"), getAllUsers);
 router.route("/getAllGroups").get(isUserValid, authorizedGroups("admin"), getAllGroups);
-router.route("/updateUser").post(isUserValid, authorizedGroups("admin"), updateUser);
-router.route("/toggleUserStatus").post(isUserValid, authorizedGroups("admin"), toggleUserStatus);
+
+// Root Admin protected routes
+router.route("/updateUser").post(isUserValid, authorizedGroups("admin"), protectAdmin, updateUser);
+router.route("/toggleUserStatus").post(isUserValid, authorizedGroups("admin"), protectAdmin, toggleUserStatus);
 
 // Specification route
 router.route("/Checkgroup").post(isUserValid, checkingGroup);
