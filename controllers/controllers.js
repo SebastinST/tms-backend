@@ -115,7 +115,12 @@ exports.registerUser = catchAsyncErrors(async (req, res, next) => {
 
   //Bcrypt password with salt 10
   const hashedPassword = await bcrypt.hash(password, 10)
-  const result = await connection.promise().execute("INSERT INTO user (username, password, email, `group_list`, is_disabled) VALUES (?,?,?,?,?)", [username, hashedPassword, email, group_list, 0])
+  let result
+  try{
+    result = await connection.promise().execute("INSERT INTO user (username, password, email, `group_list`, is_disabled) VALUES (?,?,?,?,?)", [username, hashedPassword, email, group_list, 0])
+  } catch (err){
+    console.log(err)
+  }
   if (result[0].affectedRows === 0) {
     return next(new ErrorResponse("Failed to create user", 500))
   }
