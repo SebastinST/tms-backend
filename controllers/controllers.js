@@ -238,6 +238,11 @@ exports.updateUser = catchAsyncErrors(async (req, res, next) => {
     query += "`group_list` = ?, "
     values.push(req.body.group)
   }
+  //group can be empty, if it is empty we should update the group_list to empty
+  if (req.body.group === "") {
+    query += "`group_list` = ?, "
+    values.push("")
+  }
   //remove the last comma and space
   query = query.slice(0, -2)
   //add the where clause
