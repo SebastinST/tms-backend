@@ -2,30 +2,37 @@
 const jwt = require("jsonwebtoken")
 const connection = require("./config/database")
 
-// Check if user is logged in and not disabled
+// Check user token and user disabled status
 exports.isUserValid = async (req, res, next) => {
     try {
+        // Placeholders for token and decoded token
         let token;
+        let decoded;
 
-        if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
-            token = req.headers.authorization.split(" ")[1]
-        }
+        try {
+            // if valid token then try to decrypt
+            if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
+                token = req.headers.authorization.split(" ")[1]
+            }
+            decoded = jwt.verify(token, process.env.JWT_SECRET)
 
-        if (token === "null" || !token) {
+        } catch (e) {
+            // if invalid token or error verifying
             res.status(401).json({
                 success : false,
                 message : 'Error: User need to be logged in',
             })
             return;
         }
-
-        const decoded = jwt.verify(token, process.env.JWT_SECRET)
-        const [row, fields] = await connection.promise().query(
+        
+        // Get user from DB and add to request
+        const result = await connection.promise().query(
             "SELECT * FROM user WHERE username = ?", 
             [decoded.username]
         )
-        req.user = row[0]
+        req.user = result[0][0];
 
+        // Check for disabled user
         if (req.user.is_disabled === 1) {
             res.status(401).json({
                 success : false,
@@ -68,24 +75,48 @@ exports.authorizedGroups = (...roles) => {
   }
 }
 
+// Add protection for editing root admin details
+exports.protectAdmin = async (req, res, next) => {
+    if (req.body.username == "admin" && req.user != "admin") {
+        res.status(401).json({
+            success : false,
+            message : 'Error: Admin cannot be edited',
+        })
+        return;
+    } else {
+        next();
+    }
+}
+
 // Specification checkingGroup callback function
     // Exposes Checkgroup to route Checkgroup
 exports.checkingGroup = async (req, res) => {
-    const username = req.body.userid;
+    const username = req.user.username;
     const group = req.body.groupname;
-  
-    const result = await Checkgroup(username, group);
-    res.json(result);
+    try {
+        const result = await Checkgroup(username, group);
+        
+        // Return successful check
+        return res.status(200).json({
+            result : result
+        })
+    } catch (e) {
+      res.status(500).json({
+        success : false,
+        message : e
+      });
+      return;
+    }
 }
 
 // Actual Checkgroup function that returns a value to indicate if a user is in a group
 async function Checkgroup(userid, groupname) {
     const result = await connection.promise().query(
-        "SELECT * FROM user WHERE username = ?", 
-        [userid]
+        "SELECT * FROM user WHERE username = ? AND group_list LIKE ?", 
+        [userid, `%,${groupname},%`]
     )
     if (result[0][0]) {
-        return result[0][0].group_list.includes(groupname);
+        return true;
     } else {
         return false;
     } 
