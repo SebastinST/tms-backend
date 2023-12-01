@@ -18,7 +18,7 @@ const { isUserValid, authorizedGroups, protectAdmin, checkingGroup } = require("
 
 // All user routes
 router.route("/login").post(login);
-router.route("/_logout").get(isUserValid, _logout);
+router.route("/_logout").get(_logout);
 router.route("/getSelf").get(isUserValid, getSelf);
 router.route("/updateSelf").post(isUserValid, updateSelf);
 
