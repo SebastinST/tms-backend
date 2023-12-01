@@ -77,8 +77,8 @@ exports.authorizedGroups = (...roles) => {
 
 // Add protection for editing root admin details
 exports.protectAdmin = async (req, res, next) => {
-    if (req.body.username == "admin" && req.user != "admin") {
-        res.status(401).json({
+    if (req.body.username == "admin" && req.user.username != "admin") {
+        res.status(403).json({
             success : false,
             message : 'Error: Admin cannot be edited',
         })
