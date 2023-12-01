@@ -33,7 +33,7 @@ exports.isAuthenticatedUser = catchAsyncErrors(async (req, res, next) => {
   req.token = token
 
   if (req.user.is_disabled === 1) {
-    return next(new ErrorHandler("User is disabled", 401))
+    return next(new ErrorHandler("Invalid username or password", 401))
   }
   next()
 })
