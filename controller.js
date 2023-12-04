@@ -32,7 +32,7 @@ exports.login = async (req, res) => {
         const user = result[0][0];
         
         // Check for valid user account
-        if (!user) {
+        if (!user || user.is_disabled) {
             res.status(400).json({
                 success : false,
                 message : 'Error: Invalid login credentials',
