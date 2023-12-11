@@ -914,6 +914,7 @@ const validatePermit = catchAsyncErrors(async (App_Acronym, Task_state, user) =>
 * - Task does not exist (404) => if the task does not exist
 * - You are not authorised (403) => if the user is not authorised to perform the action
 * - Failed to promote task (500) => if failed to promote task
+* - You cannot promote a task that is Closed (400) => if the task is closed
 
 * It will also throw any other errors that are not caught
 
@@ -935,6 +936,10 @@ exports.promoteTask = catchAsyncErrors(async (req, res, next) => {
 
   //Get the current state of the task
   const Task_state = row[0].Task_state
+  //If the current state is Close, we cannot promote the task
+  if (Task_state === "Close") {
+    return next(new ErrorResponse("You cannot promote a task that is Closed", 400))
+  }
   //Depending on the current state, we will update the state to the next state
   let nextState
   switch (Task_state) {
