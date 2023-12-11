@@ -429,6 +429,11 @@ exports.createApplication = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorResponse("Application already exists", 400))
   }
 
+  //App_Rnumber constraints: Must not be negative and must not be a float.
+  if (App_Rnumber < 0 || App_Rnumber % 1 !== 0) {
+    return next(new ErrorResponse("Invalid input", 400))
+  }
+
   //We need to handle the optional parameters, if they are not provided, we will set them to null
   if (!App_startDate) {
     App_startDate = null
