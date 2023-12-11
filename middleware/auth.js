@@ -47,7 +47,7 @@ exports.authorizeRoles = (...roles) => {
     //if any of the user's groups is included in the roles array, then the user is authorized
     authorised = req.user.group_list.some(r => roles.includes(r))
     if (!authorised) {
-      return next(new ErrorHandler(`Role (${req.user.group_list}) is not allowed to access this resource`, 403))
+      return next(new ErrorHandler(`You are not allowed to access this resource`, 403))
     }
     next()
   }

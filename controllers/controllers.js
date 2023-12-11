@@ -62,7 +62,7 @@ exports.loginUser = catchAsyncErrors(async (req, res, next) => {
 
   //check if username and password is provided
   if (!username || !password) {
-    return next(new ErrorResponse("Please provide a username and password", 400))
+    return next(new ErrorResponse("Invalid username or password", 400))
   }
 
   //find user in database
@@ -91,10 +91,10 @@ exports.loginUser = catchAsyncErrors(async (req, res, next) => {
 // Logout a user => /_logout
 exports.logout = catchAsyncErrors(async (req, res, next) => {
   //Set cookie to null so that it will expire and user will not be able to access protected routes
-  res.cookie("token", null, {
+  /*res.cookie("token", null, {
     expires: new Date(Date.now()),
     httpOnly: true
-  })
+  })*/
 
   //Send response
   res.status(200).json({
@@ -200,6 +200,11 @@ exports.getUser = catchAsyncErrors(async (req, res, next) => {
 
 // Toggle user status => /userController/toggleUserStatus/:username
 exports.toggleUserStatus = catchAsyncErrors(async (req, res, next) => {
+  //Check if the user being updated is the root admin
+  if (req.params.username === "admin") {
+    //Don't even allow it
+    return next(new ErrorResponse("Admin cannot be disabled", 403))
+  }
   const [row, fields] = await connection.promise().query("SELECT * FROM user WHERE username = ?", [req.params.username])
   if (row.length === 0) {
     return next(new ErrorResponse("Invalid username or password", 404))
@@ -353,7 +358,7 @@ const sendToken = (user, statusCode, res) => {
   //     options.secure = true;
   // }
 
-  res.status(statusCode).cookie("token", token, options).json({
+  res.status(statusCode).json({
     success: true,
     token,
     group_list: user.group_list,
@@ -366,3 +371,72 @@ const getJwtToken = user => {
     expiresIn: process.env.JWT_EXPIRES_TIME
   })
 }
+
+/*
+Assignment 2 stuff below, will be implementing the kanban board functionalities
+*/
+
+//Get all applications => /controller/getApplications
+exports.getApplications = catchAsyncErrors(async (req, res, next) => {
+  const [rows, fields] = await connection.promise().query("SELECT * FROM applications")
+  res.status(200).json({
+    success: true,
+    data: rows
+  })
+})
+
+/*
+* createApplication => /controller/createApplication
+* This function will create an application and insert it into the database.
+* It will take in the following parameters:
+* - App_Acronym (string) => acronym of the application
+* - App_Description (string) => description of the application
+* - App_Rnumber (string) => R number of the application
+* - App_startDate (date), (optional) => start date of the application
+* - App_endDate (date), (optional) => end date of the application
+* - App_permit_Create (string), (optional) => permit create of the application
+* - App_permit_Open (string), (optional) => permit open of the application
+* - App_permit_toDoList (string), (optional) => permit toDoList of the application
+* - App_permit_Doing (string), (optional) => permit doing of the application
+* - App_permit_Done (string), (optional) => permit done of the application
+
+* It will return the following:
+* - success (boolean) => true if successful, false if not
+* - message (string) => message to be displayed
+
+* It will throw the following errors:
+* - Invalid input (400) => if any of the required parameters are not provided
+* - Application already exists (400) => if the application already exists
+* - Failed to create application (500) => if failed to create application
+
+* It will also throw any other errors that are not caught
+
+* This function is only accessible by users with the following roles:
+* - admin
+*/
+exports.createApplication = catchAsyncErrors(async (req, res, next) => {
+  //Check if user is authorized to create application
+  const { App_Acronym, App_Description, App_Rnumber, App_startDate, App_endDate, App_permit_Create, App_permit_Open, App_permit_toDoList, App_permit_Doing, App_permit_Done } = req.body
+
+  //Check if required parameters are provided
+  if (!App_Acronym || !App_Description || !App_Rnumber) {
+    return next(new ErrorResponse("Invalid input", 400))
+  }
+
+  //Check if application already exists
+  const [row, fields] = await connection.promise().query("SELECT * FROM applications WHERE App_Acronym = ?", [App_Acronym])
+  if (row.length !== 0) {
+    return next(new ErrorResponse("Application already exists", 400))
+  }
+
+  //Insert application into database
+  const result = await connection.promise().execute("INSERT INTO applications (App_Acronym, App_Description, App_Rnumber, App_startDate, App_endDate, App_permit_Create, App_permit_Open, App_permit_toDoList, App_permit_Doing, App_permit_Done) VALUES (?,?,?,?,?,?,?,?,?,?)", [App_Acronym, App_Description, App_Rnumber, App_startDate, App_endDate, App_permit_Create, App_permit_Open, App_permit_toDoList, App_permit_Doing, App_permit_Done])
+  if (result[0].affectedRows === 0) {
+    return next(new ErrorResponse("Failed to create application", 500))
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Application created successfully"
+  })
+})
