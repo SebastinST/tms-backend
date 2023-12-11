@@ -613,6 +613,40 @@ exports.getTasks = catchAsyncErrors(async (req, res, next) => {
 })
 
 /*
+* getTasksByApp => /controller/getTasksByApp/:App_Acronym
+* This function will get all tasks from the database that belongs to an application.
+* It will take in the following parameters:
+* - App_Acronym (string) => acronym of the application
+
+* It will return the following:
+* - success (boolean) => true if successful, false if not
+* - data (array) => the tasks array
+
+* It will throw the following errors:
+* - No tasks found (404) => if no tasks are found
+* - Application does not exist (404) => if the application does not exist
+
+* It will also throw any other errors that are not caught
+*/
+exports.getTasksByApp = catchAsyncErrors(async (req, res, next) => {
+  //Check if user is authorized to get tasks
+  const App_Acronym = req.params.App_Acronym
+  const [row, fields] = await connection.promise().query("SELECT * FROM application WHERE App_Acronym = ?", [App_Acronym])
+  if (row.length === 0) {
+    return next(new ErrorResponse("Application does not exist", 404))
+  }
+  const application = row[0]
+  const [row2, fields2] = await connection.promise().query("SELECT * FROM task WHERE Task_app_acronym = ?", [App_Acronym])
+  if (row2.length === 0) {
+    return next(new ErrorResponse("No tasks found", 404))
+  }
+  res.status(200).json({
+    success: true,
+    data: row2
+  })
+})
+
+/*
 * createTask => /controller/createTask
 * This function will create a task and insert it into the database.
 * It will take in the following parameters:

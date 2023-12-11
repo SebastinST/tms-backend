@@ -3,7 +3,7 @@ const router = express.Router()
 
 const { isAuthenticatedUser, authorizeRoles } = require("../middleware/auth")
 const { Checkgroup, checkLogin, loginUser, logout, registerUser, getUsers, getUser, toggleUserStatus, updateUser, updateUserEmail, updateUserPassword, createGroup, getGroups } = require("../controllers/controllers")
-const { getApplications, createApplication, updateApplication, getApplication, createTask, getTasks, getTask, updateNotes, promoteTask, rejectTask, returnTask } = require("../controllers/controllers")
+const { getApplications, createApplication, updateApplication, getApplication, createTask, getTasks, getTask, getTasksByApp, updateNotes, promoteTask, rejectTask, returnTask } = require("../controllers/controllers")
 
 /*
 Auth Controllers
@@ -50,6 +50,7 @@ Assignment 2 stuff below.
 */
 router.route("/getApplications").get(isAuthenticatedUser, getApplications)
 router.route("/getApplication/:App_Acronym").get(isAuthenticatedUser, getApplication)
+router.route("/getTasksByApp/:App_Acronym").get(isAuthenticatedUser, getTasksByApp)
 router.route("/getTasks").get(isAuthenticatedUser, getTasks)
 router.route("/getTask/:Task_id").get(isAuthenticatedUser, getTask)
 router.route("/createApplication").post(isAuthenticatedUser, createApplication)
