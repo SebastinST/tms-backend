@@ -3,7 +3,7 @@ const router = express.Router()
 
 const { isAuthenticatedUser, authorizeRoles } = require("../middleware/auth")
 const { Checkgroup, checkLogin, loginUser, logout, registerUser, getUsers, getUser, toggleUserStatus, updateUser, updateUserEmail, updateUserPassword, createGroup, getGroups } = require("../controllers/controllers")
-const { getApplications, createApplication, updateApplication, getApplication, createTask, getTasks, getTask, getTasksByApp, updateNotes, promoteTask, rejectTask, returnTask, getPlan, getPlanByApp } = require("../controllers/controllers")
+const { getApplications, createApplication, updateApplication, getApplication, createTask, getTasks, getTask, getTasksByApp, updateNotes, promoteTask, rejectTask, returnTask, getPlan, getPlanByApp, createPlan, updatePlan, assignTaskToPlan } = require("../controllers/controllers")
 
 /*
 Auth Controllers
@@ -62,5 +62,8 @@ router.route("/rejectTask/:Task_id").put(isAuthenticatedUser, rejectTask)
 router.route("/returnTask/:Task_id").put(isAuthenticatedUser, returnTask)
 router.route("/getPlan/").post(isAuthenticatedUser, getPlan)
 router.route("/getPlanByApp/:App_Acronym").get(isAuthenticatedUser, getPlanByApp)
+router.route("/createPlan").post(isAuthenticatedUser, createPlan)
+router.route("/updatePlan").put(isAuthenticatedUser, updatePlan)
+router.route("/assignTaskToPlan/:Task_id").put(isAuthenticatedUser, assignTaskToPlan)
 
 module.exports = router

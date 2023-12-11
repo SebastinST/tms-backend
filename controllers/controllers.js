@@ -1211,3 +1211,219 @@ exports.getPlanByApp = catchAsyncErrors(async (req, res, next) => {
     data: row2
   })
 })
+
+/*
+* createPlan => /controller/createPlan
+* This function will create a plan and insert it into the database.
+* It will take in the following parameters:
+* - Plan_app_Acronym (string) => acronym of the application
+* - Plan_MVP_name (string) => name of the MVP
+* - Plan_startDate (date), (optional) => start date of the plan
+* - Plan_endDate (date), (optional) => end date of the plan
+* - Plan_color (string), (optional) => color of the plan, default to random color
+
+* It will return the following:
+* - success (boolean) => true if successful, false if not
+* - message (string) => message to be displayed
+
+* It will throw the following errors:
+* - Invalid input (400) => if any of the required parameters are not provided
+* - Plan already exists (400) => if the plan already exists
+* - Application does not exist (404) => if the application does not exist
+* - Failed to create plan (500) => if failed to create plan
+
+* It will also throw any other errors that are not caught
+
+* This function is accessible only by users with the group "projectlead" in the application.
+*/
+exports.createPlan = catchAsyncErrors(async (req, res, next) => {
+  //Check if user is authorized to create plan
+  const { Plan_app_Acronym, Plan_MVP_name } = req.body
+  const [row, fields] = await connection.promise().query("SELECT * FROM plan WHERE Plan_app_Acronym = ? AND Plan_MVP_name = ?", [Plan_app_Acronym, Plan_MVP_name])
+  if (row.length !== 0) {
+    return next(new ErrorResponse("Plan already exists", 400))
+  }
+
+  //Check if application exists
+  const [row2, fields2] = await connection.promise().query("SELECT * FROM application WHERE App_Acronym = ?", [Plan_app_Acronym])
+  if (row2.length === 0) {
+    return next(new ErrorResponse("Application does not exist", 404))
+  }
+
+  //Check if any of the required parameters are not provided
+  if (!Plan_app_Acronym || !Plan_MVP_name) {
+    return next(new ErrorResponse("Invalid input", 400))
+  }
+
+  //We need to handle the optional parameters, if they are not provided, we will set them to null
+  let { Plan_startDate, Plan_endDate, Plan_color } = req.body
+  if (!Plan_startDate) {
+    Plan_startDate = null
+  }
+  if (!Plan_endDate) {
+    Plan_endDate = null
+  }
+  if (!Plan_color) {
+    Plan_color = getRandomColor()
+  }
+
+  //Insert plan into database
+  const result = await connection.promise().execute("INSERT INTO plan (Plan_app_Acronym, Plan_MVP_name, Plan_startDate, Plan_endDate, Plan_color) VALUES (?,?,?,?,?)", [Plan_app_Acronym, Plan_MVP_name, Plan_startDate, Plan_endDate, Plan_color])
+  if (result[0].affectedRows === 0) {
+    return next(new ErrorResponse("Failed to create plan", 500))
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Plan created successfully"
+  })
+})
+
+/*
+* updatePlan => /controller/updatePlan/
+* This function will update a plan in the database. Only the start date and end date can be updated.
+* It will take in the following parameters:
+* - Plan_app_Acronym (string) => acronym of the application
+* - Plan_MVP_name (string) => name of the MVP
+* - Plan_startDate (date), (optional) => start date of the plan
+* - Plan_endDate (date), (optional) => end date of the plan
+
+* It will return the following:
+* - success (boolean) => true if successful, false if not
+* - message (string) => message to be displayed
+
+* It will throw the following errors:
+* - Invalid input (400) => if any of the required parameters are not provided
+* - Plan does not exist (404) => if the plan does not exist
+* - Application does not exist (404) => if the application does not exist
+* - Failed to update plan (500) => if failed to update plan
+
+* It will also throw any other errors that are not caught
+
+* This function is accessible only by users with the group "projectlead" in the application.
+*/
+exports.updatePlan = catchAsyncErrors(async (req, res, next) => {
+  //Check if user is authorized to update plan
+  const { Plan_app_Acronym, Plan_MVP_name } = req.body
+  const [row, fields] = await connection.promise().query("SELECT * FROM plan WHERE Plan_app_Acronym = ? AND Plan_MVP_name = ?", [Plan_app_Acronym, Plan_MVP_name])
+  if (row.length === 0) {
+    return next(new ErrorResponse("Plan does not exist", 404))
+  }
+
+  //Check if application exists
+  const [row2, fields2] = await connection.promise().query("SELECT * FROM application WHERE App_Acronym = ?", [Plan_app_Acronym])
+  if (row2.length === 0) {
+    return next(new ErrorResponse("Application does not exist", 404))
+  }
+
+  //Check if any of the required parameters are not provided
+  if (!Plan_app_Acronym || !Plan_MVP_name) {
+    return next(new ErrorResponse("Invalid input", 400))
+  }
+
+  //Since all the parameters are optional, we need to build the query dynamically, if the parameter is not provided, we will not update it
+  let query = "UPDATE plan SET "
+  let params = []
+  if (req.body.Plan_startDate) {
+    query += "Plan_startDate = ?,"
+    params.push(req.body.Plan_startDate)
+  }
+  if (req.body.Plan_endDate) {
+    query += "Plan_endDate = ?,"
+    params.push(req.body.Plan_endDate)
+  }
+  //Remove the last comma
+  query = query.slice(0, -1)
+  //Add the WHERE clause
+  query += " WHERE Plan_app_Acronym = ? AND Plan_MVP_name = ?"
+  params.push(Plan_app_Acronym)
+  params.push(Plan_MVP_name)
+
+  //Update plan
+  const result = await connection.promise().execute(query, params)
+  if (result[0].affectedRows === 0) {
+    return next(new ErrorResponse("Failed to update plan", 500))
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Plan updated successfully"
+  })
+})
+
+/*
+* assignTaskToPlan => /controller/assignTaskToPlan/:Task_id
+* This function will assign a plan to a task in the database.
+* It will take in the following parameters:
+* - Task_id (string) => id of the task
+* - Plan_app_Acronym (string) => acronym of the application
+* - Plan_MVP_name (string) => name of the MVP
+* - Task_notes (string) => notes of the task
+* - Task_owner (string) => owner of the task. This is the username of the user that made the request
+
+* It will return the following:
+* - success (boolean) => true if successful, false if not
+* - message (string) => message to be displayed
+
+* It will throw the following errors:
+* - Invalid input (400) => if any of the required parameters are not provided
+* - Plan does not exist (404) => if the plan does not exist
+* - Task does not exist (404) => if the task does not exist
+* - Application does not exist (404) => if the application does not exist
+* - Failed to assign plan to task (500) => if failed to assign plan to task
+
+* It will also throw any other errors that are not caught
+
+* This function is accessible only by users with the group "projectlead" in the application.
+*/
+exports.assignTaskToPlan = catchAsyncErrors(async (req, res, next) => {
+  //Check if user is authorized to assign plan to task
+  const { Plan_app_Acronym, Plan_MVP_name } = req.body
+  const Task_id = req.params.Task_id
+  const [row, fields] = await connection.promise().query("SELECT * FROM plan WHERE Plan_app_Acronym = ? AND Plan_MVP_name = ?", [Plan_app_Acronym, Plan_MVP_name])
+  if (row.length === 0) {
+    return next(new ErrorResponse("Plan does not exist", 404))
+  }
+
+  //Check if task exists
+  const [row2, fields2] = await connection.promise().query("SELECT * FROM task WHERE Task_id = ?", [Task_id])
+  if (row2.length === 0) {
+    return next(new ErrorResponse("Task does not exist", 404))
+  }
+
+  //Check if application exists
+  const [row3, fields3] = await connection.promise().query("SELECT * FROM application WHERE App_Acronym = ?", [Plan_app_Acronym])
+  if (row3.length === 0) {
+    return next(new ErrorResponse("Application does not exist", 404))
+  }
+
+  //Check if any of the required parameters are not provided
+  if (!Plan_app_Acronym || !Plan_MVP_name) {
+    return next(new ErrorResponse("Invalid input", 400))
+  }
+
+  //Get the Task_owner from the req.user.username
+  const Task_owner = req.user.username
+  let Added_Task_notes
+  if (req.body.Task_notes === undefined || null) {
+    //append {Task_owner} assigned {Task_name} to {Plan_MVP_name} to the end of Task_note
+    Added_Task_notes = Task_owner + " assigned " + row2[0].Task_name + " to " + Plan_MVP_name
+  } else {
+    //Get the Task_notes from the req.body.Task_notes and append {Task_owner} assigned {Task_name} to {Plan_MVP_name} to the end of Task_note
+    Added_Task_notes = req.body.Task_notes + "\n" + Task_owner + " assigned " + row2[0].Task_name + " to " + Plan_MVP_name
+  }
+
+  //Append Task_notes to the preexisting Task_notes
+  const Task_notes = Added_Task_notes + "\n" + row2[0].Task_notes
+
+  //Update the task including the task_owner
+  const result = await connection.promise().execute("UPDATE task SET Task_notes = ?, Task_plan = ?, Task_owner = ? WHERE Task_id = ?", [Task_notes, Plan_MVP_name, Task_owner, Task_id])
+  if (result[0].affectedRows === 0) {
+    return next(new ErrorResponse("Failed to assign plan to task", 500))
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Plan assigned to task successfully"
+  })
+})
