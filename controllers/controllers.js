@@ -391,7 +391,7 @@ exports.getApplications = catchAsyncErrors(async (req, res, next) => {
 * It will take in the following parameters:
 * - App_Acronym (string) => acronym of the application
 * - App_Description (string) => description of the application
-* - App_Rnumber (string) => R number of the application
+* - App_Rnumber (int) => R number of the application
 * - App_startDate (date), (optional) => start date of the application
 * - App_endDate (date), (optional) => end date of the application
 * - App_permit_Create (string), (optional) => permit create of the application
@@ -416,21 +416,44 @@ exports.getApplications = catchAsyncErrors(async (req, res, next) => {
 */
 exports.createApplication = catchAsyncErrors(async (req, res, next) => {
   //Check if user is authorized to create application
-  const { App_Acronym, App_Description, App_Rnumber, App_startDate, App_endDate, App_permit_Create, App_permit_Open, App_permit_toDoList, App_permit_Doing, App_permit_Done } = req.body
+  let { App_Acronym, App_Description, App_Rnumber, App_startDate, App_endDate, App_permit_Create, App_permit_Open, App_permit_toDoList, App_permit_Doing, App_permit_Done } = req.body
 
-  //Check if required parameters are provided
+  //Check if any of the required parameters are not provided
   if (!App_Acronym || !App_Description || !App_Rnumber) {
     return next(new ErrorResponse("Invalid input", 400))
   }
 
   //Check if application already exists
-  const [row, fields] = await connection.promise().query("SELECT * FROM applications WHERE App_Acronym = ?", [App_Acronym])
+  const [row, fields] = await connection.promise().query("SELECT * FROM application WHERE App_Acronym = ?", [App_Acronym])
   if (row.length !== 0) {
     return next(new ErrorResponse("Application already exists", 400))
   }
 
+  //We need to handle the optional parameters, if they are not provided, we will set them to null
+  if (!App_startDate) {
+    App_startDate = null
+  }
+  if (!App_endDate) {
+    App_endDate = null
+  }
+  if (!App_permit_Create) {
+    App_permit_Create = null
+  }
+  if (!App_permit_Open) {
+    App_permit_Open = null
+  }
+  if (!App_permit_toDoList) {
+    App_permit_toDoList = null
+  }
+  if (!App_permit_Doing) {
+    App_permit_Doing = null
+  }
+  if (!App_permit_Done) {
+    App_permit_Done = null
+  }
+
   //Insert application into database
-  const result = await connection.promise().execute("INSERT INTO applications (App_Acronym, App_Description, App_Rnumber, App_startDate, App_endDate, App_permit_Create, App_permit_Open, App_permit_toDoList, App_permit_Doing, App_permit_Done) VALUES (?,?,?,?,?,?,?,?,?,?)", [App_Acronym, App_Description, App_Rnumber, App_startDate, App_endDate, App_permit_Create, App_permit_Open, App_permit_toDoList, App_permit_Doing, App_permit_Done])
+  const result = await connection.promise().execute("INSERT INTO application (App_Acronym, App_Description, App_Rnumber, App_startDate, App_endDate, App_permit_Create, App_permit_Open, App_permit_toDoList, App_permit_Doing, App_permit_Done) VALUES (?,?,?,?,?,?,?,?,?,?)", [App_Acronym, App_Description, App_Rnumber, App_startDate, App_endDate, App_permit_Create, App_permit_Open, App_permit_toDoList, App_permit_Doing, App_permit_Done])
   if (result[0].affectedRows === 0) {
     return next(new ErrorResponse("Failed to create application", 500))
   }

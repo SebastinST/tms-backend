@@ -2,7 +2,7 @@ const express = require("express")
 const router = express.Router()
 
 const { isAuthenticatedUser, authorizeRoles } = require("../middleware/auth")
-const { Checkgroup, checkLogin, loginUser, logout, registerUser, getUsers, getUser, toggleUserStatus, updateUser, updateUserEmail, updateUserPassword, createGroup, getGroups, getApplications } = require("../controllers/controllers")
+const { Checkgroup, checkLogin, loginUser, logout, registerUser, getUsers, getUser, toggleUserStatus, updateUser, updateUserEmail, updateUserPassword, createGroup, getGroups, getApplications, createApplication } = require("../controllers/controllers")
 
 /*
 Auth Controllers
@@ -48,5 +48,6 @@ router.route("/checkLogin").get(isAuthenticatedUser, async (req, res, next) => {
 Assignment 2 stuff below.
 */
 router.route("/getApplications").get(isAuthenticatedUser, getApplications)
+router.route("/createApplication").post(isAuthenticatedUser, createApplication)
 
 module.exports = router
