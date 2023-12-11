@@ -672,7 +672,7 @@ exports.createTask = catchAsyncErrors(async (req, res, next) => {
   Task_app_acronym = application.App_Acronym
 
   //Generate Task_state
-  const Task_state = "open"
+  const Task_state = "Open"
 
   //Generate Task_creator
   const Task_creator = user
@@ -732,4 +732,112 @@ exports.getTask = catchAsyncErrors(async (req, res, next) => {
     success: true,
     data: row[0]
   })
+})
+
+/*
+* updateNotes => /controller/updateNotes/:Task_id
+* This function will update the notes of a task in the database.
+* It will take in the following parameters:
+* - Task_notes (string) => notes of the task
+
+* It will return the following:
+* - success (boolean) => true if successful, false if not
+* - message (string) => message to be displayed
+
+* It will throw the following errors:
+* - Invalid input (400) => if any of the required parameters are not provided
+* - Task does not exist (404) => if the task does not exist
+* - Failed to update notes (500) => if failed to update notes
+
+* It will also throw any other errors that are not caught
+
+* This function is accessible only by groups inside the permit of the task state.
+*/
+exports.updateNotes = catchAsyncErrors(async (req, res, next) => {
+  //Check if user is authorized to update notes
+  const Task_id = req.params.Task_id
+  const [row, fields] = await connection.promise().query("SELECT * FROM task WHERE Task_id = ?", [Task_id])
+  if (row.length === 0) {
+    return next(new ErrorResponse("Task does not exist", 404))
+  }
+
+  //Check if user is allowed to perform the action
+  const validate = await validatePermit(row[0].Task_app_Acronym, row[0].Task_state, req.user.username)
+  if (!validate) {
+    return next(new ErrorResponse("You are not authorised", 403))
+  }
+
+  //Check if any of the required parameters are not provided
+  if (!req.body.Task_notes) {
+    return next(new ErrorResponse("Invalid input", 400))
+  }
+
+  //Update notes
+  const result = await connection.promise().execute("UPDATE task SET Task_notes = ? WHERE Task_id = ?", [req.body.Task_notes, Task_id])
+  if (result[0].affectedRows === 0) {
+    return next(new ErrorResponse("Failed to update notes", 500))
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Notes updated successfully"
+  })
+})
+
+/*
+* validatePermit => backend function to validate if the user is allowed to perform the action
+* This function will take in the following parameters:
+* - App_Acronym (string) => acronym of the application
+* - Task_state (string) => state of the task
+* - user (string) => username of the user
+
+* It will return the following:
+* - success (boolean) => true if successful, false if not
+
+* It will throw the following errors:
+* - Application does not exist (404) => if the application does not exist
+* - Task does not exist (404) => if the task does not exist
+
+* It will also throw any other errors that are not caught
+*/
+const validatePermit = catchAsyncErrors(async (App_Acronym, Task_state, user) => {
+  //Check if application exists
+  const [row, fields] = await connection.promise().query("SELECT * FROM application WHERE App_Acronym = ?", [App_Acronym])
+  if (row.length === 0) {
+    return next(new ErrorResponse("Application does not exist", 404))
+  }
+
+  //Check if user is allowed to perform the action
+  const application = row[0]
+  //Get the permit of the task state
+  const permit = application["App_permit_" + Task_state]
+  //check permit if it is null
+  if (permit === null || permit === undefined) {
+    return false
+  }
+
+  //Split the permit by comma
+  const permit_list = permit.split(",")
+
+  //Get user's groups
+  const [row2, fields3] = await connection.promise().query("SELECT * FROM user WHERE username = ?", [user])
+  if (row2.length === 0) {
+    return next(new ErrorResponse("User does not exist", 404))
+  }
+
+  //Get the user's groups
+  const user_groups = row2[0].group_list.split(",")
+  //Check if any of the user's groups is included in the permit array, then the user is authorized. The group has to match exactly
+  //for each group in the group array, check match exact as group parameter
+  authorised = false
+  for (let i = 0; i < user_groups.length; i++) {
+    if (permit_list.includes(user_groups[i])) {
+      authorised = true
+      break
+    }
+  }
+  if (!authorised) {
+    return false
+  }
+  return true
 })
