@@ -703,3 +703,33 @@ exports.createTask = catchAsyncErrors(async (req, res, next) => {
     message: "Task created successfully"
   })
 })
+
+/*
+* getTask => /controller/getTask/:Task_id
+* This function will get a task from the database.
+* It will take in the following parameters:
+* - Task_id (string) => id of the task
+
+* It will return the following:
+* - success (boolean) => true if successful, false if not
+* - data (object) => the task object
+
+* It will throw the following errors:
+* - Task does not exist (404) => if the task does not exist
+
+* It will also throw any other errors that are not caught
+
+* This function is accessible by all users
+*/
+exports.getTask = catchAsyncErrors(async (req, res, next) => {
+  //Check if user is authorized to get task
+  const Task_id = req.params.Task_id
+  const [row, fields] = await connection.promise().query("SELECT * FROM task WHERE Task_id = ?", [Task_id])
+  if (row.length === 0) {
+    return next(new ErrorResponse("Task does not exist", 404))
+  }
+  res.status(200).json({
+    success: true,
+    data: row[0]
+  })
+})
