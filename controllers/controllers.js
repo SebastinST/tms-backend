@@ -598,7 +598,7 @@ exports.getApplication = catchAsyncErrors(async (req, res, next) => {
 */
 
 exports.getTasks = catchAsyncErrors(async (req, res, next) => {
-  const [rows, fields] = await connection.promise().query("SELECT * FROM tasks")
+  const [rows, fields] = await connection.promise().query("SELECT * FROM task")
   if (rows.length === 0) {
     return next(new ErrorResponse("No tasks found", 404))
   }
