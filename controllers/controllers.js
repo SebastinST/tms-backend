@@ -1144,3 +1144,70 @@ const getRandomColor = () => {
 
   return color
 }
+
+/*
+* getPlan => /controller/getPlan/
+* This function will get the plan of a task from the database. As it is using a composite key of Plan_app_Acronym and Plan_MVP_name, we will need to get both of them from the req.body.
+* It will take in the following parameters:
+* - Plan_app_Acronym (string) => acronym of the application
+* - Plan_MVP_name (string) => name of the MVP
+
+* It will return the following:
+* - success (boolean) => true if successful, false if not
+* - data (object) => the plan object
+
+* It will throw the following errors:
+* - Plan does not exist (404) => if the plan does not exist
+
+* It will also throw any other errors that are not caught
+
+* This function is accessible only by users with the group "projectlead" in the application.
+*/
+exports.getPlan = catchAsyncErrors(async (req, res, next) => {
+  //Check if user is authorized to get plan
+  const { Plan_app_Acronym, Plan_MVP_name } = req.body
+  const [row, fields] = await connection.promise().query("SELECT * FROM plan WHERE Plan_app_Acronym = ? AND Plan_MVP_name = ?", [Plan_app_Acronym, Plan_MVP_name])
+  if (row.length === 0) {
+    return next(new ErrorResponse("Plan does not exist", 404))
+  }
+  res.status(200).json({
+    success: true,
+    data: row[0]
+  })
+})
+
+/*
+* getPlanByApp => /controller/getPlanByApp/:App_Acronym
+* This function will get all plans of an application from the database.
+* It will take in the following parameters:
+* - App_Acronym (string) => acronym of the application
+
+* It will return the following:
+* - success (boolean) => true if successful, false if not
+* - data (array) => the plans array
+
+* It will throw the following errors:
+* - No plans found (404) => if no plans are found
+* - Application does not exist (404) => if the application does not exist
+
+* It will also throw any other errors that are not caught
+
+* This function is accessible only by users with the group "projectlead" in the application.
+*/
+exports.getPlanByApp = catchAsyncErrors(async (req, res, next) => {
+  //Check if user is authorized to get plan
+  const App_Acronym = req.params.App_Acronym
+  const [row, fields] = await connection.promise().query("SELECT * FROM application WHERE App_Acronym = ?", [App_Acronym])
+  if (row.length === 0) {
+    return next(new ErrorResponse("Application does not exist", 404))
+  }
+  const application = row[0]
+  const [row2, fields2] = await connection.promise().query("SELECT * FROM plan WHERE Plan_app_Acronym = ?", [App_Acronym])
+  if (row2.length === 0) {
+    return next(new ErrorResponse("No plans found", 404))
+  }
+  res.status(200).json({
+    success: true,
+    data: row2
+  })
+})

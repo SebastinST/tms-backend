@@ -3,7 +3,7 @@ const router = express.Router()
 
 const { isAuthenticatedUser, authorizeRoles } = require("../middleware/auth")
 const { Checkgroup, checkLogin, loginUser, logout, registerUser, getUsers, getUser, toggleUserStatus, updateUser, updateUserEmail, updateUserPassword, createGroup, getGroups } = require("../controllers/controllers")
-const { getApplications, createApplication, updateApplication, getApplication, createTask, getTasks, getTask, getTasksByApp, updateNotes, promoteTask, rejectTask, returnTask } = require("../controllers/controllers")
+const { getApplications, createApplication, updateApplication, getApplication, createTask, getTasks, getTask, getTasksByApp, updateNotes, promoteTask, rejectTask, returnTask, getPlan, getPlanByApp } = require("../controllers/controllers")
 
 /*
 Auth Controllers
@@ -60,5 +60,7 @@ router.route("/updateNotes/:Task_id").put(isAuthenticatedUser, updateNotes)
 router.route("/promoteTask/:Task_id").put(isAuthenticatedUser, promoteTask)
 router.route("/rejectTask/:Task_id").put(isAuthenticatedUser, rejectTask)
 router.route("/returnTask/:Task_id").put(isAuthenticatedUser, returnTask)
+router.route("/getPlan/").post(isAuthenticatedUser, getPlan)
+router.route("/getPlanByApp/:App_Acronym").get(isAuthenticatedUser, getPlanByApp)
 
 module.exports = router
