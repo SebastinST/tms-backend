@@ -809,15 +809,31 @@ const validatePermit = catchAsyncErrors(async (App_Acronym, Task_state, user) =>
 
   //Check if user is allowed to perform the action
   const application = row[0]
-  //Get the permit of the task state
-  const permit = application["App_permit_" + Task_state]
-  //check permit if it is null
-  if (permit === null || permit === undefined) {
+  //Depending on the state, access the permit of the application
+  let permit_state
+  switch (Task_state) {
+    case "Open":
+      permit_state = application.App_permit_Open
+      break
+    case "ToDo":
+      permit_state = application.App_permit_toDoList
+      break
+    case "Doing":
+      permit_state = application.App_permit_Doing
+      break
+    case "Done":
+      permit_state = application.App_permit_Done
+      break
+    default:
+      return next(new ErrorResponse("Invalid task state", 400))
+    //check permit if it is null
+  }
+  if (permit_state === null || permit_state === undefined) {
     return false
   }
 
   //Split the permit by comma
-  const permit_list = permit.split(",")
+  const permit_list = permit_state.split(",")
 
   //Get user's groups
   const [row2, fields3] = await connection.promise().query("SELECT * FROM user WHERE username = ?", [user])
@@ -840,4 +856,89 @@ const validatePermit = catchAsyncErrors(async (App_Acronym, Task_state, user) =>
     return false
   }
   return true
+})
+
+/*
+* promoteTask => /controller/promoteTask/:Task_id
+* This function will approve a task in the database and move it to the next state.
+* It will take in the following parameters:
+* - Task_notes (string) => notes of the task
+* - Task_owner (string) => owner of the task. This is the username of the user that is assigned to the task
+* - Task_state (string) => state of the task. This should be the current state of the task from the database
+* - Task_id (string) => id of the task
+
+* It will return the following:
+* - success (boolean) => true if successful, false if not
+* - message (string) => message to be displayed
+
+* It will throw the following errors:
+* - Invalid input (400) => if any of the required parameters are not provided
+* - Task does not exist (404) => if the task does not exist
+* - You are not authorised (403) => if the user is not authorised to perform the action
+* - Failed to promote task (500) => if failed to promote task
+
+* It will also throw any other errors that are not caught
+
+* This function is accessible only by groups inside the permit of the task state.
+*/
+exports.promoteTask = catchAsyncErrors(async (req, res, next) => {
+  //Check if user is authorized to promote task
+  const Task_id = req.params.Task_id
+  const [row, fields] = await connection.promise().query("SELECT * FROM task WHERE Task_id = ?", [Task_id])
+  if (row.length === 0) {
+    return next(new ErrorResponse("Task does not exist", 404))
+  }
+
+  //Check if user is allowed to perform the action
+  const validate = await validatePermit(row[0].Task_app_Acronym, row[0].Task_state, req.user.username)
+  if (!validate) {
+    return next(new ErrorResponse("You are not authorised", 403))
+  }
+
+  //Get the current state of the task
+  const Task_state = row[0].Task_state
+  //Depending on the current state, we will update the state to the next state
+  let nextState
+  switch (Task_state) {
+    case "Open":
+      nextState = "ToDo"
+      break
+    case "ToDo":
+      nextState = "Doing"
+      break
+    case "Doing":
+      nextState = "Done"
+      break
+    case "Done":
+      nextState = "Close"
+      break
+    default:
+      nextState = "Close"
+  }
+
+  //Get the Task_owner from the req.user.username
+  const Task_owner = req.user.username
+  let Added_Task_notes
+  if (req.body.Task_notes === undefined || null) {
+    //append {Task_owner} moved {Task_name} from {Task_state} to {nextState} to the end of Task_note
+    Added_Task_notes = Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState
+  } else {
+    //Get the Task_notes from the req.body.Task_notes and append {Task_owner} moved {Task_name} from {Task_state} to {nextState} to the end of Task_note
+    Added_Task_notes = req.body.Task_notes + "\n" + Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState
+  }
+
+  //Append Task_notes to the preexisting Task_notes
+  console.log(row[0].Task_notes)
+  const Task_notes = row[0].Task_notes + "\n" + Added_Task_notes
+  console.log(Task_notes)
+  //Update the task
+  const result = await connection.promise().execute("UPDATE task SET Task_notes = ?, Task_state = ?, Task_owner = ? WHERE Task_id = ?", [Task_notes, nextState, Task_owner, Task_id])
+  if (result[0].affectedRows === 0) {
+    return next(new ErrorResponse("Failed to promote task", 500))
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Task promoted successfully"
+  })
 })
