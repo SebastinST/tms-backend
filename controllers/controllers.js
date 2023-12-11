@@ -927,7 +927,7 @@ exports.promoteTask = catchAsyncErrors(async (req, res, next) => {
   }
 
   //Append Task_notes to the preexisting Task_notes
-  const Task_notes = row[0].Task_notes + "\n" + Added_Task_notes
+  const Task_notes = Added_Task_notes + "\n" + row[0].Task_notes
   //Update the task
   const result = await connection.promise().execute("UPDATE task SET Task_notes = ?, Task_state = ?, Task_owner = ? WHERE Task_id = ?", [Task_notes, nextState, Task_owner, Task_id])
   if (result[0].affectedRows === 0) {
@@ -941,13 +941,14 @@ exports.promoteTask = catchAsyncErrors(async (req, res, next) => {
 })
 
 /*
-* demoteTask => /controller/demoteTask/:Task_id
-* This function will reject a task in the database and move it to the previous state.
+* rejectTask => /controller/rejectTask/:Task_id
+* This function will reject a task in the database and move it back to the Doing state.
 * It will take in the following parameters:
 * - Task_notes (string) => notes of the task
 * - Task_owner (string) => owner of the task. This is the username of the user that made the request
 * - Task_state (string) => state of the task. This should be the current state of the task from the database
 * - Task_id (string) => id of the task
+* - Task_plan (string) => plan of the task.
 
 * It will return the following:
 * - success (boolean) => true if successful, false if not
@@ -957,14 +958,14 @@ exports.promoteTask = catchAsyncErrors(async (req, res, next) => {
 * - Invalid input (400) => if any of the required parameters are not provided
 * - Task does not exist (404) => if the task does not exist
 * - You are not authorised (403) => if the user is not authorised to perform the action
-* - Failed to demote task (500) => if failed to demote task
+* - Failed to reject task (500) => if failed to reject task
 
 * It will also throw any other errors that are not caught
 
 * This function is accessible only by groups inside the permit of the task state.
 */
-exports.demoteTask = catchAsyncErrors(async (req, res, next) => {
-  //Check if user is authorized to demote task
+exports.rejectTask = catchAsyncErrors(async (req, res, next) => {
+  //Check if user is authorized to reject task
   const Task_id = req.params.Task_id
   const [row, fields] = await connection.promise().query("SELECT * FROM task WHERE Task_id = ?", [Task_id])
   if (row.length === 0) {
@@ -979,46 +980,128 @@ exports.demoteTask = catchAsyncErrors(async (req, res, next) => {
 
   //Get the current state of the task
   const Task_state = row[0].Task_state
-  //Depending on the current state, we will update the state to the previous state
-  let previousState
-  switch (Task_state) {
-    case "Open":
-      previousState = "Open"
-      break
-    case "ToDo":
-      previousState = "Open"
-      break
-    case "Doing":
-      previousState = "ToDo"
-      break
-    case "Done":
-      previousState = "Doing"
-      break
-    default:
-      previousState = "Open"
+  //If the current state is not Done, we cannot reject the task
+  if (Task_state !== "Done") {
+    return next(new ErrorResponse("You cannot reject a task that is not Done", 400))
   }
+  //The state will always be Doing when rejecting a task
+  const nextState = "Doing"
 
   //Get the Task_owner from the req.user.username
   const Task_owner = req.user.username
   let Added_Task_notes
   if (req.body.Task_notes === undefined || null) {
-    //append {Task_owner} moved {Task_name} from {Task_state} to {previousState} to the end of Task_note
-    Added_Task_notes = Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + previousState
+    //append {Task_owner} moved {Task_name} from {Task_state} to {nextState} to the end of Task_note
+    Added_Task_notes = Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState
   } else {
-    //Get the Task_notes from the req.body.Task_notes and append {Task_owner} moved {Task_name} from {Task_state} to {previousState} to the end of Task_note
-    Added_Task_notes = req.body.Task_notes + "\n" + Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + previousState
+    //Get the Task_notes from the req.body.Task_notes and append {Task_owner} moved {Task_name} from {Task_state} to {nextState} to the end of Task_note
+    Added_Task_notes = req.body.Task_notes + "\n" + Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState
   }
 
   //Append Task_notes to the preexisting Task_notes
-  const Task_notes = row[0].Task_notes + "\n" + Added_Task_notes
+  const Task_notes = Added_Task_notes + "\n" + row[0].Task_notes
+
+  //Task_plan can be updated if it is provided
+  let Task_plan
+  if (req.body.Task_plan === undefined || null) {
+    Task_plan = row[0].Task_plan
+  } else {
+    Task_plan = req.body.Task_plan
+  }
+
   //Update the task
-  const result = await connection.promise().execute("UPDATE task SET Task_notes = ?, Task_state = ?, Task_owner = ? WHERE Task_id = ?", [Task_notes, previousState, Task_owner, Task_id])
+  const result = await connection.promise().execute("UPDATE task SET Task_notes = ?, Task_state = ?, Task_owner = ?, Task_plan = ? WHERE Task_id = ?", [Task_notes, nextState, Task_owner, Task_plan, Task_id])
   if (result[0].affectedRows === 0) {
-    return next(new ErrorResponse("Failed to demote task", 500))
+    return next(new ErrorResponse("Failed to reject task", 500))
   }
 
   res.status(200).json({
     success: true,
-    message: "Task demoted successfully"
+    message: "Task rejected successfully"
   })
 })
+
+/*
+* returnTask => /controller/returnTask/:Task_id
+* This function will demote a task in the database and move it back to the ToDo state.
+* It will take in the following parameters:
+* - Task_notes (string) => notes of the task
+* - Task_owner (string) => owner of the task. This is the username of the user that made the request
+* - Task_state (string) => state of the task. This should be the current state of the task from the database
+* - Task_id (string) => id of the task
+
+* It will return the following:
+* - success (boolean) => true if successful, false if not
+* - message (string) => message to be displayed
+
+* It will throw the following errors:
+* - Invalid input (400) => if any of the required parameters are not provided
+* - Task does not exist (404) => if the task does not exist
+* - You are not authorised (403) => if the user is not authorised to perform the action
+* - Failed to return task (500) => if failed to return task
+
+* It will also throw any other errors that are not caught
+
+* This function is accessible only by groups inside the permit of the task state.
+*/
+exports.returnTask = catchAsyncErrors(async (req, res, next) => {
+  //Check if user is authorized to return task
+  const Task_id = req.params.Task_id
+  const [row, fields] = await connection.promise().query("SELECT * FROM task WHERE Task_id = ?", [Task_id])
+  if (row.length === 0) {
+    return next(new ErrorResponse("Task does not exist", 404))
+  }
+
+  //Check if user is allowed to perform the action
+  const validate = await validatePermit(row[0].Task_app_Acronym, row[0].Task_state, req.user.username)
+  if (!validate) {
+    return next(new ErrorResponse("You are not authorised", 403))
+  }
+
+  //Get the current state of the task
+  const Task_state = row[0].Task_state
+  //If the current state is not Doing, we cannot return the task
+  if (Task_state !== "Doing") {
+    return next(new ErrorResponse("You cannot return a task that is not Doing", 400))
+  }
+  //The state will always be ToDo when returning a task
+  const nextState = "ToDo"
+
+  //Get the Task_owner from the req.user.username
+  const Task_owner = req.user.username
+  let Added_Task_notes
+  if (req.body.Task_notes === undefined || null) {
+    //append {Task_owner} moved {Task_name} from {Task_state} to {nextState} to the end of Task_note
+    Added_Task_notes = Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState
+  } else {
+    //Get the Task_notes from the req.body.Task_notes and append {Task_owner} moved {Task_name} from {Task_state} to {nextState} to the end of Task_note
+    Added_Task_notes = req.body.Task_notes + "\n" + Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState
+  }
+
+  //Append Task_notes to the preexisting Task_notes
+  const Task_notes = Added_Task_notes + "\n" + row[0].Task_notes
+
+  //Update the task
+  const result = await connection.promise().execute("UPDATE task SET Task_notes = ?, Task_state = ?, Task_owner = ? WHERE Task_id = ?", [Task_notes, nextState, Task_owner, Task_id])
+  if (result[0].affectedRows === 0) {
+    return next(new ErrorResponse("Failed to return task", 500))
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Task returned successfully"
+  })
+})
+
+/*
+ * function to generate a random color hex code
+ */
+const getRandomColor = () => {
+  const letters = "0123456789ABCDEF"
+  let color = "#"
+  for (let i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)]
+  }
+
+  return color
+}
