@@ -550,3 +550,35 @@ exports.updateApplication = catchAsyncErrors(async (req, res, next) => {
     message: "Application updated successfully"
   })
 })
+
+/*
+* getApplication => /controller/getApplication/:App_Acronym
+* This function will get an application from the database.
+* It will take in the following parameters:
+* - App_Acronym (string) => acronym of the application
+
+* It will return the following:
+* - success (boolean) => true if successful, false if not
+* - data (object) => the application object
+
+* It will throw the following errors:
+* - Application does not exist (404) => if the application does not exist
+
+* It will also throw any other errors that are not caught
+
+* This function is only accessible by users with the following roles:
+* - admin
+*/
+
+exports.getApplication = catchAsyncErrors(async (req, res, next) => {
+  //Check if user is authorized to get application
+  const App_Acronym = req.params.App_Acronym
+  const [row, fields] = await connection.promise().query("SELECT * FROM application WHERE App_Acronym = ?", [App_Acronym])
+  if (row.length === 0) {
+    return next(new ErrorResponse("Application does not exist", 404))
+  }
+  res.status(200).json({
+    success: true,
+    data: row[0]
+  })
+})
