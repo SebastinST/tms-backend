@@ -582,3 +582,124 @@ exports.getApplication = catchAsyncErrors(async (req, res, next) => {
     data: row[0]
   })
 })
+
+/*
+* getTasks => /controller/getTasks
+* This function will get all tasks from the database.
+
+* It will return the following:
+* - success (boolean) => true if successful, false if not
+* - data (array) => the tasks array
+
+* It will throw the following errors:
+* - No tasks found (404) => if no tasks are found
+
+* It will also throw any other errors that are not caught
+*/
+
+exports.getTasks = catchAsyncErrors(async (req, res, next) => {
+  const [rows, fields] = await connection.promise().query("SELECT * FROM tasks")
+  if (rows.length === 0) {
+    return next(new ErrorResponse("No tasks found", 404))
+  }
+  res.status(200).json({
+    success: true,
+    data: rows
+  })
+})
+
+/*
+* createTask => /controller/createTask
+* This function will create a task and insert it into the database.
+* It will take in the following parameters:
+* - Task_name (string) => name of the task
+* - Task_description (string), (optional) => description of the task
+* - Task_notes (string), (optional) => notes of the task
+* - Task_id (string), (generated) => id of the task, this is the primary key. This is a combination of the application acronym and the application R number. 
+    Take in App_Acronym as a parameter and get the R number from the application table then generate the Task_id
+* - Task_plan (string), (optional) => plan of the task
+* - Task_app_acronym (string), (generated) => acronym of the application that the task belongs to
+* - Task_state (string), (generated) => state of the task, default to open.
+* - Task_creator (string), (generated) => creator of the task, default to current user's username
+* - Task_owner (string), (generated) => owner of the task, default to current user's username
+* - Task_createDate (date), (generated) => create date of the task, default to current date
+ 
+* It will return the following:
+* - success (boolean) => true if successful, false if not
+* - message (string) => message to be displayed
+
+* It will throw the following errors:
+* - Invalid input (400) => if any of the required parameters are not provided
+* - Failed to create task (500) => if failed to create task
+
+* It will also throw any other errors that are not caught
+
+* This function is only accessible by users with the following roles:
+* - admin
+* - projectlead
+*/
+exports.createTask = catchAsyncErrors(async (req, res, next) => {
+  //Check if user is authorized to create task
+  let { Task_name, Task_description, Task_notes, Task_plan, Task_app_acronym } = req.body
+  let user = req.user.username
+
+  //Check if any of the required parameters are not provided
+  if (!Task_name || !Task_app_acronym) {
+    return next(new ErrorResponse("Invalid input", 400))
+  }
+
+  //We need to handle the optional parameters, if they are not provided, we will set them to null
+  if (!Task_description) {
+    Task_description = null
+  }
+  if (!Task_notes) {
+    Task_notes = null
+  }
+  if (!Task_plan) {
+    Task_plan = null
+  }
+
+  //Generate Task_id
+  const [row, fields] = await connection.promise().query("SELECT * FROM application WHERE App_Acronym = ?", [Task_app_acronym])
+  if (row.length === 0) {
+    return next(new ErrorResponse("Application does not exist", 404))
+  }
+
+  const application = row[0]
+  const Task_id = Task_app_acronym + application.App_Rnumber
+
+  //Generate Task_app_acronym
+  Task_app_acronym = application.App_Acronym
+
+  //Generate Task_state
+  const Task_state = "open"
+
+  //Generate Task_creator
+  const Task_creator = user
+
+  //Generate Task_owner
+  const Task_owner = user
+
+  //Generate Task_createDate, the date is in the format YYYY-MM-DD HH:MM:SS. This is using current local time
+  const Task_createDate = new Date().toISOString().slice(0, 19).replace("T", " ")
+  //@TODO make it use local timezone.
+  console.log(Task_createDate)
+
+  //Insert task into database
+  const result = await connection.promise().execute("INSERT INTO task (Task_name, Task_description, Task_notes, Task_id, Task_plan, Task_app_acronym, Task_state, Task_creator, Task_owner, Task_createDate) VALUES (?,?,?,?,?,?,?,?,?,?)", [Task_name, Task_description, Task_notes, Task_id, Task_plan, Task_app_acronym, Task_state, Task_creator, Task_owner, Task_createDate])
+  if (result[0].affectedRows === 0) {
+    return next(new ErrorResponse("Failed to create task", 500))
+  }
+
+  //Increment the application R number
+  const newApp_Rnumber = application.App_Rnumber + 1
+  const result2 = await connection.promise().execute("UPDATE application SET App_Rnumber = ? WHERE App_Acronym = ?", [newApp_Rnumber, Task_app_acronym])
+  if (result2[0].affectedRows === 0) {
+    return next(new ErrorResponse("Something went wrong...", 500))
+    //We should delete the task that was just created
+  }
+  res.status(200).json({
+    success: true,
+    message: "Task created successfully"
+  })
+})
