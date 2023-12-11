@@ -2,7 +2,7 @@ const express = require("express")
 const router = express.Router()
 
 const { isAuthenticatedUser, authorizeRoles } = require("../middleware/auth")
-const { Checkgroup, checkLogin, loginUser, logout, registerUser, getUsers, getUser, toggleUserStatus, updateUser, updateUserEmail, updateUserPassword, createGroup, getGroups, getApplications, createApplication } = require("../controllers/controllers")
+const { Checkgroup, checkLogin, loginUser, logout, registerUser, getUsers, getUser, toggleUserStatus, updateUser, updateUserEmail, updateUserPassword, createGroup, getGroups, getApplications, createApplication, updateApplication } = require("../controllers/controllers")
 
 /*
 Auth Controllers
@@ -49,5 +49,6 @@ Assignment 2 stuff below.
 */
 router.route("/getApplications").get(isAuthenticatedUser, getApplications)
 router.route("/createApplication").post(isAuthenticatedUser, createApplication)
+router.route("/updateApplication/:App_Acronym").put(isAuthenticatedUser, updateApplication)
 
 module.exports = router

@@ -463,3 +463,90 @@ exports.createApplication = catchAsyncErrors(async (req, res, next) => {
     message: "Application created successfully"
   })
 })
+
+/*
+* updateApplication => /controller/updateApplication/:App_Acronym
+* This function will update an application and insert it into the database.
+* It will take in the following parameters:
+* - App_Description (string), (optional) => description of the application
+* - App_startDate (date), (optional) => start date of the application
+* - App_endDate (date), (optional) => end date of the application
+* - App_permit_Create (string), (optional) => permit create of the application
+* - App_permit_Open (string), (optional) => permit open of the application
+* - App_permit_toDoList (string), (optional) => permit toDoList of the application
+* - App_permit_Doing (string), (optional) => permit doing of the application
+* - App_permit_Done (string), (optional) => permit done of the application
+
+* It will return the following:
+* - success (boolean) => true if successful, false if not
+* - message (string) => message to be displayed
+
+* It will throw the following errors:
+* - Invalid input (400) => if any of the required parameters are not provided
+* - Application does not exist (404) => if the application does not exist
+* - Failed to update application (500) => if failed to update application
+
+* It will also throw any other errors that are not caught
+
+* This function is only accessible by users with the following roles:
+* - admin
+*/
+exports.updateApplication = catchAsyncErrors(async (req, res, next) => {
+  //Check if user is authorized to update application
+  const App_Acronym = req.params.App_Acronym
+  console.log(App_Acronym)
+  const [row, fields] = await connection.promise().query("SELECT * FROM application WHERE App_Acronym = ?", [App_Acronym])
+  if (row.length === 0) {
+    return next(new ErrorResponse("Application does not exist", 404))
+  }
+
+  //Since all the parameters are optional, we need to build the query dynamically, if the parameter is not provided, we will not update it
+  let query = "UPDATE application SET "
+  let values = []
+  if (req.body.App_Description) {
+    query += "App_Description = ?, "
+    values.push(req.body.App_Description)
+  }
+  if (req.body.App_startDate) {
+    query += "App_startDate = ?, "
+    values.push(req.body.App_startDate)
+  }
+  if (req.body.App_endDate) {
+    query += "App_endDate = ?, "
+    values.push(req.body.App_endDate)
+  }
+  if (req.body.App_permit_Create) {
+    query += "App_permit_Create = ?, "
+    values.push(req.body.App_permit_Create)
+  }
+  if (req.body.App_permit_Open) {
+    query += "App_permit_Open = ?, "
+    values.push(req.body.App_permit_Open)
+  }
+  if (req.body.App_permit_toDoList) {
+    query += "App_permit_toDoList = ?, "
+    values.push(req.body.App_permit_toDoList)
+  }
+  if (req.body.App_permit_Doing) {
+    query += "App_permit_Doing = ?, "
+    values.push(req.body.App_permit_Doing)
+  }
+  if (req.body.App_permit_Done) {
+    query += "App_permit_Done = ?, "
+    values.push(req.body.App_permit_Done)
+  }
+  //remove the last comma and space
+  query = query.slice(0, -2)
+  //add the where clause
+  query += " WHERE App_Acronym = ?"
+  values.push(App_Acronym)
+  const result = await connection.promise().execute(query, values)
+  if (result[0].affectedRows === 0) {
+    return next(new ErrorResponse("Failed to update application", 500))
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Application updated successfully"
+  })
+})
