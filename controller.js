@@ -63,7 +63,7 @@ exports.login = async (req, res) => {
             httpOnly: true
         }
 
-        res.status(200).cookie("token", token, options).json({
+        res.status(200).json({
             success: true,
             token
         })
