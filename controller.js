@@ -176,7 +176,7 @@ exports.updateSelf = async (req, res) => {
         success : true,
         message : `Success: Your details have been updated`,
       })
-    } catch (e) {
+    } catch(e) {
       res.status(500).json({
         success : false,
         message : e
@@ -395,7 +395,7 @@ exports.updateUser = async (req, res) => {
         success : true,
         message : `Success: User '${username}' details updated`,
       })
-    } catch (e) {
+    } catch(e) {
       res.status(500).json({
         success : false,
         message : e,
@@ -427,7 +427,7 @@ exports.toggleUserStatus = async (req, res) => {
       success : true,
       message : `Success: User '${username}' status changed`,
     })
-  } catch (e) {
+  } catch(e) {
     res.status(500).json({
       success : false,
       message : e,
@@ -629,7 +629,7 @@ exports.updateApp = async (req, res) => {
       message : `Success: Application '${App_Acronym}' updated`,
     })
 
-  } catch (e) {
+  } catch(e) {
     res.status(500).json({
       success : false,
       message : e,
@@ -660,20 +660,20 @@ const checkPermit = async (user, Task_id) => {
   let Task;
   try {
     // Get task current state from DB
-    result = await connection.promise().execute(
+    let getTask = await connection.promise().execute(
       "SELECT * FROM task WHERE `Task_id`=?",
       [Task_id]
     );
 
-    Task = result[0];
+    Task = getTask[0][0];
 
     // Get application information from DB
-    let result = await connection.promise().execute(
+    let getApp = await connection.promise().execute(
       "SELECT * FROM application WHERE `App_Acronym`=?",
       [Task.Task_app_Acronym]
     );
 
-    const application = result[0];
+    const application = getApp[0][0];
     
     // Get permitted group from application based on current task state
     switch (Task.Task_state) {
@@ -691,31 +691,31 @@ const checkPermit = async (user, Task_id) => {
         break
     }
 
-  } catch {
-    // Find out error code for not found app acronym/ task
-
-    res.status(500).json({
-      success : false,
+  } catch(e) {
+    // CONTINUE: Find out error code for not found app acronym/ task
+    return {
+      code : 500,
+      success : false, 
       message : e
-    });
-    return;
+    }
   }
   
   // Return error if no permitted group specified or user does not have permitted group
-  if (!permittedGroup || user.group_list.includes(`,${permittedGroup},`)) {
-    res.status(403).json({
-      success : false,
-      message : `Error: User ${user.username} is not authorised`,
-    })
-    return;
+  console.log(permittedGroup);
+  if (!permittedGroup || !user.group_list.includes(`,${permittedGroup},`)) {
+    return {
+      code : 403,
+      success : false, 
+      message : `Error: User ${user.username} is not authorised`
+    }
   } else {
     // Check if user group has permitted group
     return Task.Task_state;
   }
 }
 
-// M1: Show all plan details by app acronym
-// GET to '/getPlansByApp'
+// M1: Show all plan details by app acronym 'ABC'
+// GET to '/getPlansByApp/ABC'
 exports.getPlansByApp = async (req, res) => {
   const App_Acronym = req.params.App_Acronym
   
@@ -747,14 +747,14 @@ exports.getPlansByApp = async (req, res) => {
 exports.createPlan = async (req, res) => {
   let { 
     Plan_MVP_name, 
-    Plan_app_acronym, 
+    Plan_app_Acronym, 
     Plan_color, 
     Plan_startDate, 
     Plan_endDate, 
   } = req.body;
   
   //Check if any of the required parameters are not provided
-  if (!Plan_MVP_name || !Plan_app_acronym) {
+  if (!Plan_MVP_name || !Plan_app_Acronym) {
     res.status(400).json({
       success : false,
       message : 'Error: Plan Name and App Acronym must be provided',
@@ -776,7 +776,7 @@ exports.createPlan = async (req, res) => {
       "INSERT INTO plan (`Plan_MVP_name`,`Plan_app_Acronym`,`Plan_color`,`Plan_startDate`,`Plan_endDate`) VALUES (?,?,?,?,?)", 
       [
         Plan_MVP_name, 
-        Plan_app_acronym, 
+        Plan_app_Acronym, 
         Plan_color, 
         Plan_startDate, 
         Plan_endDate, 
@@ -798,14 +798,23 @@ exports.createPlan = async (req, res) => {
     })
 
   } catch(e) {
-    if (e.code === "ER_DUP_ENTRY") {
-      res.status(500).json({
+    // Error code for repeated plan name
+    if (e.errno === 1062) {
+      res.status(400).json({
         success : false,
-        message : `Error: Plan '${App_Acronym}' already exists`
+        message : `Error: App '${Plan_MVP_name}' already exists`
       });
       return;  
     }
-    // Find out error code for not found app acronym
+
+    // Error code for missing application
+    if (e.errno === 1452) {
+      res.status(400).json({
+        success : false,
+        message : `Error: Application '${Plan_app_Acronym}' does not exist`
+      });
+      return;  
+    }
 
     res.status(500).json({
       success : false,
@@ -820,13 +829,13 @@ exports.createPlan = async (req, res) => {
 exports.updatePlan = async (req, res) => {
   let { 
     Plan_MVP_name, 
-    Plan_app_acronym,
+    Plan_app_Acronym,
     Plan_startDate, 
     Plan_endDate, 
   } = req.body;
 
   //Check if any of the required parameters are not provided
-  if (!Plan_MVP_name || !Plan_app_acronym) {
+  if (!Plan_MVP_name || !Plan_app_Acronym) {
     res.status(400).json({
       success : false,
       message : 'Error: Plan Name and App Acronym must be provided',
@@ -841,12 +850,12 @@ exports.updatePlan = async (req, res) => {
   // DB update plan details based on plan name and app acronym
   try {
     const result = await connection.promise().execute(
-      "UPDATE plan SET `Plan_startDate`=?, `Plan_endDate`=? WHERE `Plan_MVP_name`=? AND `Plan_app_acronym`=?", 
+      "UPDATE plan SET `Plan_startDate`=?, `Plan_endDate`=? WHERE `Plan_MVP_name`=? AND `Plan_app_Acronym`=?", 
       [ 
         Plan_startDate, 
         Plan_endDate, 
         Plan_MVP_name, 
-        Plan_app_acronym,
+        Plan_app_Acronym,
       ]
     )
     
@@ -861,11 +870,11 @@ exports.updatePlan = async (req, res) => {
     // Return successful update
     return res.status(200).json({
       success : true,
-      message : `Success: Plan '${Plan_MVP_name}' in App '${Plan_app_acronym}' updated`,
+      message : `Success: Plan '${Plan_MVP_name}' in App '${Plan_app_Acronym}' updated`,
     })
 
-  } catch (e) {
-    // TODO: Find out error code for not found app acronym
+  } catch(e) {
+    // CONTINUE: Find out error code for not found app acronym
 
     res.status(500).json({
       success : false,
@@ -886,7 +895,7 @@ exports.getTasksByApp = async (req, res) => {
   // DB select all tasks tagged to app
   try {
     const result = await connection.promise().execute(
-      "SELECT `Task_name`, `Task_state`, `Plan_color` FROM task, plan WHERE `task.Task_plan` = `plan.Plan_MVP_name` AND `task.task_app_Acronym` = `plan.Plan_app_Acronym` AND `Task_app_Acronym`=?",
+      "SELECT `Task_name`, `Task_state`, `Plan_color` FROM task LEFT JOIN plan ON `Task_plan` = `Plan_MVP_name` AND `task_app_Acronym` = `Plan_app_Acronym` WHERE `Task_app_Acronym`=?",
       [App_Acronym]
     )
     
@@ -928,21 +937,25 @@ exports.createTask = async (req, res) => {
   // Handle optional parameter
   if (!Task_description) {Task_description = null}
 
+  let App_Rnumber;
   // Get related application details
   try {
     let result = await connection.promise().execute(
       "SELECT `App_Rnumber` FROM application WHERE `App_Acronym`=?",
       [Task_app_Acronym]
     )
-    const application = result[0];
-    if (!application) {
+    
+    if (result[0][0]) {
+      App_Rnumber = result[0][0].App_Rnumber;
+    } else {
       res.status(400).json({
         success : false,
-        message : 'Error: App does not exist',
-      })
-      return;
+        message : `Error: App '${Task_app_Acronym}' does not exist`
+      });
+      return;  
     }
-  } catch {
+    
+  } catch(e) {
     res.status(500).json({
       success : false,
       message : e
@@ -950,8 +963,8 @@ exports.createTask = async (req, res) => {
     return;
   }
 
-  // Generate task ID, check if string ok
-  const Task_id = Task_app_Acronym + application.App_Rnumber;
+  // Generate task ID
+  const Task_id = Task_app_Acronym + App_Rnumber;
 
   // Set default open state
   const Task_state = "Open";
@@ -960,7 +973,7 @@ exports.createTask = async (req, res) => {
   const currentDateTime = new Date().toLocaleString();
   const Task_notes = 
     `\n
-    \nState: ${Task_state}
+    \nCreated in ${Task_state} state
     \nUser: ${username}
     \nDatetime: ${currentDateTime}
     \n`
@@ -983,19 +996,11 @@ exports.createTask = async (req, res) => {
         Task_owner
       ]
     )
-    
-    if (result[0].affectedRows === 0) {
-      res.status(500).json({
-        success : false,
-        message : 'Error: Issue creating task',
-      })
-      return;
-    };
 
     // Increment app Running number after successful creation
     result = await connection.promise().execute(
-      "UPDATE application SET App_Rnumber = ? WHERE App_Acronym = ?", 
-      [application.App_Rnumber + 1, Task_app_Acronym]
+      "UPDATE application SET `App_Rnumber` = ? WHERE `App_Acronym` = ?", 
+      [App_Rnumber + 1, Task_app_Acronym]
     )
 
     // Return successful creation
@@ -1005,18 +1010,29 @@ exports.createTask = async (req, res) => {
     })
 
   } catch(e) {
-    if (e.code === "ER_DUP_ENTRY") {
-      res.status(500).json({
+    // Error code for repeated task name
+    if (e.errno === 1062) {
+      res.status(400).json({
         success : false,
         message : `Error: Task '${Task_id}' already exists`
       });
       return;  
     }
-    // Find out error code for not found app acronym
+
+    // Error code for missing application
+    if (e.errno === 1452) {
+      res.status(400).json({
+        success : false,
+        message : `Error: Application '${Task_app_Acronym}' does not exist`
+      });
+      return; 
+    }
+
+    // CONTINUE: Find out error code for not found app acronym
 
     res.status(500).json({
       success : false,
-      message : e
+      message : "hello"
     });
     return;
   }
@@ -1042,15 +1058,24 @@ exports.getTaskById = async (req, res) => {
       "SELECT * FROM task WHERE `Task_id`=?",
       [Task_id]
     )
-    
-    // Return task
-    return res.status(200).json({
-      success : true,
-      message : `Success: Task '${App_Acronym}' returned`,
-      data : result[0]
-    });
 
-  } catch {
+    // Check if any task returned
+    if (result[0].length) {
+      // Return task
+      return res.status(200).json({
+        success : true,
+        message : `Success: Task '${Task_id}' returned`,
+        data : result[0]
+      });
+    } else {
+      res.status(400).json({
+        success : false,
+        message : `Error: Task '${Task_id}' does not exist`
+      });
+      return;  
+    }
+
+  } catch(e) {
     res.status(500).json({
       success : false,
       message : e
@@ -1064,14 +1089,14 @@ exports.getTaskById = async (req, res) => {
 exports.addTaskNotes = async (req, res) => {
   let {
     Task_id, 
-    Task_notes
+    New_notes
   } = req.body;
 
   // Get username from token
   const Task_owner = req.user.username;
 
   //Check if the required parameters are not provided
-  if (!Task_notes || !Task_id) {
+  if (!New_notes || !Task_id) {
     res.status(400).json({
       success : false,
       message : 'Error: Task ID and Task notes must be provided',
@@ -1079,14 +1104,41 @@ exports.addTaskNotes = async (req, res) => {
     return;
   }
 
+  let Task_notes;
+  // Get previous task notes
+  try {
+    let result = await connection.promise().execute(
+      "SELECT `Task_notes` FROM task WHERE `Task_id`=?",
+      [Task_id]
+    )
+    
+    if (result[0][0]) {
+      Task_notes = result[0][0].Task_notes;
+    } else {
+      res.status(400).json({
+        success : false,
+        message : `Error: Task '${Task_id}' does not exist`
+      });
+      return;
+    }
+    
+  } catch(e) {
+    res.status(500).json({
+      success : false,
+      message : e
+    });
+    return;
+  }
+
   // Update notes with audit trail
   const currentDateTime = new Date().toLocaleString();
-  Task_notes += 
-  `\n
+  Task_notes += New_notes +
+  `
   \nNotes Added
   \nUser: ${Task_owner}
   \nDatetime: ${currentDateTime}
-  \n`
+  \n
+  `
 
   // Update task with new notes and update task owner
   try {
@@ -1108,7 +1160,7 @@ exports.addTaskNotes = async (req, res) => {
       success : true,
       message : `Success: Task '${Task_id}' updated`,
     })
-  } catch (e) {
+  } catch(e) {
     res.status(500).json({
       success : false,
       message : e,
@@ -1124,28 +1176,35 @@ exports.addTaskNotes = async (req, res) => {
 exports.promoteTask = async (req, res) => {
   let {
     Task_id,
-    Task_notes,
-    Task_app_Acronym
+    New_notes
   } = req.body;
 
   // Get username from token
   const Task_owner = req.user.username;
 
   //Check if the required parameters are not provided
-  if (!Task_notes || !Task_id || !Task_app_Acronym) {
+  if (!Task_id) {
     res.status(400).json({
       success : false,
-      message : 'Error: Task ID, Task notes and App acronym must be provided',
+      message : 'Error: Task ID must be provided',
     })
     return;
   }
   
   // Check if current user can promote current task
-  const Task_state = await checkPermit(req.user, Task_id)
+  const check = await checkPermit(req.user, Task_id)
+
+  if (check.code) {
+    res.status(check.code).json({
+      success : false,
+      message : check.message
+    })
+    return;
+  }
 
   //Depending on the current state, we will update the state to the next state
   let nextState;
-  switch (Task_state) {
+  switch (check) {
     case "Open":
       nextState = "ToDo"
       break
@@ -1162,14 +1221,42 @@ exports.promoteTask = async (req, res) => {
       nextState = "Close"
   }
 
+  let Task_notes;
+  // Get previous task notes
+  try {
+    let result = await connection.promise().execute(
+      "SELECT `Task_notes` FROM task WHERE `Task_id`=?",
+      [Task_id]
+    )
+    
+    if (result[0][0]) {
+      Task_notes = result[0][0].Task_notes;
+    } else {
+      res.status(400).json({
+        success : false,
+        message : `Error: Task '${Task_id}' does not exist`
+      });
+      return;
+    }
+    
+  } catch(e) {
+    res.status(500).json({
+      success : false,
+      message : e
+    });
+    return;
+  }
+
   // Update notes with audit trail
   const currentDateTime = new Date().toLocaleString();
-  Task_notes += 
-  `\n
-  \nPromoted to ${nextState} state
-  \nUser: ${username}
+  if (!New_notes) {New_notes=""};
+  Task_notes += New_notes +
+  `
+  \nPromoted to ${nextState}
+  \nUser: ${Task_owner}
   \nDatetime: ${currentDateTime}
-  \n`
+  \n
+  `
 
   // Update task with new notes and state and update task owner
   try {
@@ -1191,7 +1278,7 @@ exports.promoteTask = async (req, res) => {
       success : true,
       message : `Success: Task '${Task_id}' promoted`,
     })
-  } catch (e) {
+  } catch(e) {
     res.status(500).json({
       success : false,
       message : e,
@@ -1205,41 +1292,76 @@ exports.promoteTask = async (req, res) => {
 exports.rejectTask = async (req, res) => {
   let {
     Task_id,
-    Task_notes,
-    Task_plan,
-    Task_app_Acronym
+    New_notes,
+    Task_plan
   } = req.body;
 
   // Get username from token
   const Task_owner = req.user.username;
 
   //Check if the required parameters are not provided
-  if (!Task_notes || !Task_id || !Task_app_Acronym) {
+  if (!Task_id) {
     res.status(400).json({
       success : false,
-      message : 'Error: Task ID, Task notes and App acronym must be provided',
+      message : 'Error: Task ID must be provided',
     })
     return;
   }
 
-  // Check if current user can reject current task
-  await checkPermit(req.user, Task_id);
+  // Check if current user can promote current task
+  const check = await checkPermit(req.user, Task_id)
 
-  //Depending on the current state, we will update the state to the next state
+  if (check.code) {
+    res.status(check.code).json({
+      success : false,
+      message : check.message
+    })
+    return;
+  }
+  // CONTINUE: Check if task is in 'Done' state
+
+  // For rejecting task, next state for task will be 'Doing'
   let nextState = "Doing";
   
   // Handle optional parameter
   if (!Task_plan) {Task_plan = null};
 
+  let Task_notes;
+  // Get previous task notes
+  try {
+    let result = await connection.promise().execute(
+      "SELECT `Task_notes` FROM task WHERE `Task_id`=?",
+      [Task_id]
+    )
+    
+    if (result[0][0]) {
+      Task_notes = result[0][0].Task_notes;
+    } else {
+      res.status(400).json({
+        success : false,
+        message : `Error: Task '${Task_id}' does not exist`
+      });
+      return;
+    }
+    
+  } catch(e) {
+    res.status(500).json({
+      success : false,
+      message : e
+    });
+    return;
+  }
+
   // Update notes with audit trail
   const currentDateTime = new Date().toLocaleString();
-  Task_notes += 
-  `\n
-  \nRejected to ${nextState} state
-  \nUser: ${username}
+  if (!New_notes) {New_notes=""};
+  Task_notes += New_notes +
+  `
+  \nRejected to ${nextState}
+  \nUser: ${Task_owner}
   \nDatetime: ${currentDateTime}
-  \n`
-
+  \n
+  `
   // Update task with new notes and state (and plan, if have) and update task owner
   try {
     result = await connection.promise().execute(
@@ -1260,7 +1382,7 @@ exports.rejectTask = async (req, res) => {
       success : true,
       message : `Success: Task '${Task_id}' rejected`,
     })
-  } catch (e) {
+  } catch(e) {
     res.status(500).json({
       success : false,
       message : e,
@@ -1274,35 +1396,72 @@ exports.rejectTask = async (req, res) => {
 exports.returnTask = async (req, res) => {
   let {
     Task_id,
-    Task_notes
+    New_notes
   } = req.body;
 
   // Get username from token
   const Task_owner = req.user.username;
 
   //Check if the required parameters are not provided
-  if (!Task_notes || !Task_id) {
+  if (!Task_id) {
     res.status(400).json({
       success : false,
-      message : 'Error: Task ID and Task notes must be provided',
+      message : 'Error: Task ID must be provided',
     })
     return;
   }
 
-  // Check if current user can return current task
-  await checkPermit(req.user, Task_id);
+  // Check if current user can promote current task
+  const check = await checkPermit(req.user, Task_id)
 
-  //Depending on the current state, we will update the state to the next state
+  if (check.code) {
+    res.status(check.code).json({
+      success : false,
+      message : check.message
+    })
+    return;
+  }
+  // CONTINUE: Check if task is in 'Doing' state
+
+  // For returning of task, next state is ToDo
   let nextState = "ToDo";
+
+  let Task_notes;
+  // Get previous task notes
+  try {
+    let result = await connection.promise().execute(
+      "SELECT `Task_notes` FROM task WHERE `Task_id`=?",
+      [Task_id]
+    )
+    
+    if (result[0][0]) {
+      Task_notes = result[0][0].Task_notes;
+    } else {
+      res.status(400).json({
+        success : false,
+        message : `Error: Task '${Task_id}' does not exist`
+      });
+      return;
+    }
+    
+  } catch(e) {
+    res.status(500).json({
+      success : false,
+      message : e
+    });
+    return;
+  }
 
   // Update notes with audit trail
   const currentDateTime = new Date().toLocaleString();
-  Task_notes += 
-  `\n
-  \nReturned to ${nextState} state
-  \nUser: ${username}
+  if (!New_notes) {New_notes=""};
+  Task_notes += New_notes +
+  `
+  \nReturned to ${nextState}
+  \nUser: ${Task_owner}
   \nDatetime: ${currentDateTime}
-  \n`
+  \n
+  `
 
   // Update task with new notes and state (and plan, if have) and update task owner
   try {
@@ -1324,7 +1483,7 @@ exports.returnTask = async (req, res) => {
       success : true,
       message : `Success: Task '${Task_id}' returned`,
     })
-  } catch (e) {
+  } catch(e) {
     res.status(500).json({
       success : false,
       message : e,
@@ -1338,7 +1497,7 @@ exports.returnTask = async (req, res) => {
 exports.assignTaskToPlan = async (req, res) => {
   let {
     Task_id,
-    Task_notes,
+    New_notes,
     Task_plan
   } = req.body;
 
@@ -1346,10 +1505,10 @@ exports.assignTaskToPlan = async (req, res) => {
   const Task_owner = req.user.username;
 
   //Check if the required parameters are not provided
-  if (!Task_notes || !Task_id) {
+  if (!Task_id) {
     res.status(400).json({
       success : false,
-      message : 'Error: Task ID and Task notes must be provided',
+      message : 'Error: Task ID must be provided',
     })
     return;
   }
@@ -1357,14 +1516,53 @@ exports.assignTaskToPlan = async (req, res) => {
   // Handle optional parameter
   if (!Task_plan) {Task_plan = null};
 
+  let Task_notes;
+  let Task_state;
+  // Get previous task notes and state
+  try {
+    let result = await connection.promise().execute(
+      "SELECT * FROM task WHERE `Task_id`=?",
+      [Task_id]
+    )
+    
+    if (result[0][0]) {
+      Task_notes = result[0][0].Task_notes;
+      Task_state = result[0][0].Task_state;
+    } else {
+      res.status(400).json({
+        success : false,
+        message : `Error: Task '${Task_id}' does not exist`
+      });
+      return;
+    }
+    
+  } catch(e) {
+    res.status(500).json({
+      success : false,
+      message : e
+    });
+    return;
+  }
+
+  // Check if task is in 'Open' state
+  if (Task_state != "Open") {
+    res.status(403).json({
+      success : false,
+      message : `Error: Task '${Task_id}' is not in 'Open' state`
+    });
+    return;
+  } 
+
   // Update notes with audit trail
   const currentDateTime = new Date().toLocaleString();
-  Task_notes += 
-  `\n
-  \nAssigned to ${Task_plan ? Task_plan: "no plan"}
-  \nUser: ${username}
+  if (!New_notes) {New_notes=""};
+  Task_notes += New_notes +
+  `
+  \n${Task_plan ? "Changed Plan to" + Task_plan : "Removed Plan"}
+  \nUser: ${Task_owner}
   \nDatetime: ${currentDateTime}
-  \n`
+  \n
+  `
 
   // Update task with new notes and state (and plan, if have) and update task owner
   try {
@@ -1384,10 +1582,18 @@ exports.assignTaskToPlan = async (req, res) => {
     // Return successful update
     return res.status(200).json({
       success : true,
-      message : `Success: Task '${Task_id}' assigned to ${Task_plan}`,
+      message : `Success: ${Task_plan ? "Task '" + Task_id + "' assigned to '" + Task_plan + "'": "Removed Plan from " + Task_id}`
     })
-  } catch (e) {
-    // 
+  } catch(e) {
+    // Error code for missing plan
+    if (e.errno === 1452) {
+      res.status(400).json({
+        success : false,
+        message : `Error: Plan '${Task_plan}' does not exist`
+      });
+      return;  
+    }
+
     res.status(500).json({
       success : false,
       message : e,
