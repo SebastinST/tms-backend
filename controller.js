@@ -1099,7 +1099,7 @@ exports.addTaskNotes = async (req, res) => {
   if (!New_notes || !Task_id) {
     res.status(400).json({
       success : false,
-      message : 'Error: Task ID and Task notes must be provided',
+      message : 'Error: Task ID and New notes must be provided',
     })
     return;
   }
@@ -1132,13 +1132,14 @@ exports.addTaskNotes = async (req, res) => {
 
   // Update notes with audit trail
   const currentDateTime = new Date().toLocaleString();
-  Task_notes += New_notes +
+  Task_notes = New_notes +
   `
   \nNotes Added
   \nUser: ${Task_owner}
   \nDatetime: ${currentDateTime}
   \n
   `
+  + Task_notes;
 
   // Update task with new notes and update task owner
   try {
@@ -1250,13 +1251,14 @@ exports.promoteTask = async (req, res) => {
   // Update notes with audit trail
   const currentDateTime = new Date().toLocaleString();
   if (!New_notes) {New_notes=""};
-  Task_notes += New_notes +
+  Task_notes = New_notes +
   `
   \nPromoted to ${nextState}
   \nUser: ${Task_owner}
   \nDatetime: ${currentDateTime}
   \n
   `
+  + Task_notes;
 
   // Update task with new notes and state and update task owner
   try {
@@ -1355,13 +1357,15 @@ exports.rejectTask = async (req, res) => {
   // Update notes with audit trail
   const currentDateTime = new Date().toLocaleString();
   if (!New_notes) {New_notes=""};
-  Task_notes += New_notes +
+  Task_notes = New_notes +
   `
   \nRejected to ${nextState}
   \nUser: ${Task_owner}
   \nDatetime: ${currentDateTime}
   \n
   `
+  + Task_notes;
+
   // Update task with new notes and state (and plan, if have) and update task owner
   try {
     result = await connection.promise().execute(
@@ -1455,13 +1459,14 @@ exports.returnTask = async (req, res) => {
   // Update notes with audit trail
   const currentDateTime = new Date().toLocaleString();
   if (!New_notes) {New_notes=""};
-  Task_notes += New_notes +
+  Task_notes = New_notes +
   `
   \nReturned to ${nextState}
   \nUser: ${Task_owner}
   \nDatetime: ${currentDateTime}
   \n
   `
+  + Task_notes;
 
   // Update task with new notes and state (and plan, if have) and update task owner
   try {
@@ -1556,13 +1561,14 @@ exports.assignTaskToPlan = async (req, res) => {
   // Update notes with audit trail
   const currentDateTime = new Date().toLocaleString();
   if (!New_notes) {New_notes=""};
-  Task_notes += New_notes +
+  Task_notes = New_notes +
   `
   \n${Task_plan ? "Changed Plan to " + Task_plan : "Removed Plan"}
   \nUser: ${Task_owner}
   \nDatetime: ${currentDateTime}
   \n
-  `
+  ` 
+  + Task_notes;
 
   // Update task with new notes and state (and plan, if have) and update task owner
   try {
