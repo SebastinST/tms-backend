@@ -895,7 +895,7 @@ exports.getTasksByApp = async (req, res) => {
   // DB select all tasks tagged to app
   try {
     const result = await connection.promise().execute(
-      "SELECT `Task_name`, `Task_state`, `Plan_color` FROM task LEFT JOIN plan ON `Task_plan` = `Plan_MVP_name` AND `task_app_Acronym` = `Plan_app_Acronym` WHERE `Task_app_Acronym`=?",
+      "SELECT `Task_id`, `Task_name`, `Task_state`, `Plan_color` FROM task LEFT JOIN plan ON `Task_plan` = `Plan_MVP_name` AND `task_app_Acronym` = `Plan_app_Acronym` WHERE `Task_app_Acronym`=?",
       [App_Acronym]
     )
     
@@ -1558,7 +1558,7 @@ exports.assignTaskToPlan = async (req, res) => {
   if (!New_notes) {New_notes=""};
   Task_notes += New_notes +
   `
-  \n${Task_plan ? "Changed Plan to" + Task_plan : "Removed Plan"}
+  \n${Task_plan ? "Changed Plan to " + Task_plan : "Removed Plan"}
   \nUser: ${Task_owner}
   \nDatetime: ${currentDateTime}
   \n
