@@ -49,7 +49,7 @@ router.route("/createApp").post(isUserValid, authorizedGroups("pl"), createApp);
 router.route("/updateApp").post(isUserValid, authorizedGroups("pl"), updateApp);
 
 // Plan routes
-router.route("/getPlansByApp/:App_Acronym").get(isUserValid, authorizedGroups("pm"), getPlansByApp);
+router.route("/getPlansByApp/:App_Acronym").get(isUserValid, getPlansByApp);
 router.route("/createPlan").post(isUserValid, authorizedGroups("pm"), createPlan);
 router.route("/updatePlan").post(isUserValid, authorizedGroups("pm"), updatePlan);
 
