@@ -49,7 +49,7 @@ router.route("/checkLogin").get(isAuthenticatedUser, async (req, res, next) => {
 Assignment 2 stuff below.
 */
 router.route("/getApplications").get(isAuthenticatedUser, getApplications)
-//router.route("/getApplication/:App_Acronym").get(isAuthenticatedUser, getApplication) //Might not be necessary. Only person who should be accessing this is project lead as they need to edit the application.
+router.route("/getApplication/:App_Acronym").get(isAuthenticatedUser, getApplication) //Might not be necessary. Only person who should be accessing this is project lead as they need to edit the application.
 router.route("/getTasksByApp/:App_Acronym").get(isAuthenticatedUser, getTasksByApp)
 //router.route("/getTasks").get(isAuthenticatedUser, getTasks) //Might be redundant/unnecessary
 router.route("/getTask/:Task_id").get(isAuthenticatedUser, getTask)
@@ -61,7 +61,7 @@ router.route("/promoteTask/:Task_id").put(isAuthenticatedUser, promoteTask) //Sh
 router.route("/rejectTask/:Task_id").put(isAuthenticatedUser, rejectTask) //Should be restricted to people with groups inside App_permit_Done
 router.route("/returnTask/:Task_id").put(isAuthenticatedUser, returnTask) //Should be restricted to people with groups inside App_permit_Doing
 //router.route("/getPlan/").post(isAuthenticatedUser, getPlan) //Might not be necessary. Should be restricted to project manager
-router.route("/getPlanByApp/:App_Acronym").get(isAuthenticatedUser, authorizeRoles("PM"), getPlanByApp) //Should be restricted to project manager
+router.route("/getPlanByApp/:App_Acronym").get(isAuthenticatedUser, getPlanByApp) //Should be restricted to project manager
 router.route("/createPlan").post(isAuthenticatedUser, authorizeRoles("PM"), createPlan) //Should be restricted to project manager
 router.route("/updatePlan").put(isAuthenticatedUser, authorizeRoles("PM"), updatePlan) //Should be restricted to project manager
 router.route("/assignTaskToPlan/:Task_id").put(isAuthenticatedUser, authorizeRoles("PM"), assignTaskToPlan) //Should be restricted to project manager

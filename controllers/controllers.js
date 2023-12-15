@@ -3,6 +3,7 @@ const ErrorResponse = require("../utils/errorHandler")
 const bcrypt = require("bcryptjs")
 const jwt = require("jsonwebtoken")
 const mysql = require("mysql2")
+const nodemailer = require("nodemailer")
 
 //Setting up database connection
 const connection = mysql.createConnection({
@@ -646,7 +647,7 @@ exports.getTasksByApp = catchAsyncErrors(async (req, res, next) => {
   const application = row[0]
   //I want to pull out all the tasks that belong to this application as well as the Plan_color that belongs to each task
   //SELECT task.*, plan.Plan_color FROM task LEFT JOIN plan ON task.Task_plan = plan.Plan_MVP_name WHERE Task_app_Acronym = "test";
-  const [row2, fields2] = await connection.promise().query("SELECT task.*, plan.Plan_color FROM task LEFT JOIN plan ON task.Task_plan = plan.Plan_MVP_name WHERE Task_app_Acronym = ?", [App_Acronym])
+  const [row2, fields2] = await connection.promise().query("SELECT task.*, plan.Plan_color FROM task LEFT JOIN plan ON task.Task_plan = plan.Plan_MVP_name AND task.Task_app_Acronym = plan.Plan_app_Acronym WHERE Task_app_Acronym = ?", [App_Acronym])
   if (row2.length === 0) {
     return next(new ErrorResponse("No tasks found", 404))
   }
@@ -814,10 +815,10 @@ exports.updateNotes = catchAsyncErrors(async (req, res, next) => {
   }
 
   //Check if user is allowed to perform the action
-  const validate = await validatePermit(row[0].Task_app_Acronym, row[0].Task_state, req.user.username)
-  if (!validate) {
-    return next(new ErrorResponse("You are not authorised", 403))
-  }
+  // const validate = await validatePermit(row[0].Task_app_Acronym, row[0].Task_state, req.user.username)
+  // if (!validate) {
+  //   return next(new ErrorResponse("You are not authorised", 403))
+  // }
 
   //Check if any of the required parameters are not provided
   if (!req.body.Task_notes) {
@@ -827,7 +828,7 @@ exports.updateNotes = catchAsyncErrors(async (req, res, next) => {
   //We should append the notes to the existing notes, so we need to get the existing notes first
   const existing_notes = row[0].Task_notes
   //Append the existing notes with the new notes
-  req.body.Task_notes = req.body.Task_notes + "\n\n" + existing_notes
+  req.body.Task_notes = req.body.Task_notes + "\n" + "by " + req.user.username + "\n\n" + existing_notes
 
   //Update notes
   const result = await connection.promise().execute("UPDATE task SET Task_notes = ? WHERE Task_id = ?", [req.body.Task_notes, Task_id])
@@ -974,8 +975,9 @@ exports.promoteTask = catchAsyncErrors(async (req, res, next) => {
 
   //Get the Task_owner from the req.user.username
   const Task_owner = req.user.username
+
   let Added_Task_notes
-  if (req.body.Task_notes === undefined || null) {
+  if (req.body.Task_notes === undefined || req.body.Task_notes === null || req.body.Task_notes === "") {
     //append {Task_owner} moved {Task_name} from {Task_state} to {nextState} to the end of Task_note
     Added_Task_notes = Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState
   } else {
@@ -983,7 +985,7 @@ exports.promoteTask = catchAsyncErrors(async (req, res, next) => {
     Added_Task_notes = Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState + "\n" + req.body.Task_notes
   }
 
-  //Append Task_notes to the preexisting Task_notes
+  //Append Task_notes to the preexisting Task_notes, I want it to have two new lines between the old notes and the new notes
   const Task_notes = Added_Task_notes + "\n\n" + row[0].Task_notes
   //Update the task
   const result = await connection.promise().execute("UPDATE task SET Task_notes = ?, Task_state = ?, Task_owner = ? WHERE Task_id = ?", [Task_notes, nextState, Task_owner, Task_id])
@@ -995,7 +997,61 @@ exports.promoteTask = catchAsyncErrors(async (req, res, next) => {
     success: true,
     message: "Task promoted successfully"
   })
+
+  if (Task_state === "Doing" && nextState === "Done") {
+    sendEmailToProjectLead(row[0].Task_name, Task_owner, row[0].Task_app_Acronym)
+  }
 })
+
+async function sendEmailToProjectLead(taskName, taskOwner, Task_app_acronym) {
+  //We need to pull the App_permit_Done group
+  const [row, fields] = await connection.promise().query("SELECT * FROM application WHERE App_Acronym = ?", [Task_app_acronym])
+
+  const group = row[0].App_permit_Done
+
+  //We need to pull the emails of all users
+  const [row2, fields2] = await connection.promise().query("SELECT * FROM user")
+  const users = row2
+
+  //We need to pull the emails of all users that are in the group
+  let emails = []
+  for (let i = 0; i < users.length; i++) {
+    const user = users[i]
+    const user_groups = user.group_list.split(",")
+    if (user_groups.includes(group)) {
+      //check if email is null or undefined
+      if (user.email !== null && user.email !== undefined) {
+        emails.push(user.email)
+      }
+    }
+  }
+
+  // Set up transporter
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: process.env.SMTP_PORT,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS
+    }
+  })
+
+  // Define mail options
+  const mailOptions = {
+    from: `${process.env.SMTP_FROM_NAME} <${process.env.SMTP_FROM_EMAIL}>`,
+    to: emails, // Replace with the actual project lead's email
+    subject: `Task Promotion Notification`,
+    text: `The task "${taskName}" has been promoted to "Done" by ${taskOwner}.`
+  }
+
+  // Send the email
+  try {
+    await transporter.sendMail(mailOptions)
+    console.log("Email sent successfully.")
+  } catch (error) {
+    console.error("Failed to send email:", error)
+  }
+}
 
 /*
 * rejectTask => /controller/rejectTask/:Task_id
@@ -1431,7 +1487,7 @@ exports.assignTaskToPlan = catchAsyncErrors(async (req, res, next) => {
     Added_Task_notes = Task_owner + " assigned " + row2[0].Task_name + " to " + Plan_MVP_name
   } else {
     //Get the Task_notes from the req.body.Task_notes and append {Task_owner} assigned {Task_name} to {Plan_MVP_name} to the end of Task_note
-    Added_Task_notes = Task_owner + " assigned " + row2[0].Task_name + " to " + Plan_MVP_name + "\n" + req.body.Task_notes
+    Added_Task_notes = Task_owner + " assigned " + row2[0].Task_name + " to " + Plan_MVP_name + "\n\n" + req.body.Task_notes
   }
 
   //Append Task_notes to the preexisting Task_notes
