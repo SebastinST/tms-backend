@@ -754,10 +754,18 @@ exports.createPlan = async (req, res) => {
   } = req.body;
   
   //Check if any of the required parameters are not provided
-  if (!Plan_MVP_name || !Plan_app_Acronym) {
+  if (!Plan_MVP_name) {
     res.status(400).json({
       success : false,
-      message : 'Error: Plan Name and App Acronym must be provided',
+      message : 'Error: Plan Name must be provided',
+    })
+    return;
+  }
+  
+  if (!Plan_app_Acronym) {
+    res.status(400).json({
+      success : false,
+      message : 'Error: App Acronym must be provided',
     })
     return;
   }
@@ -802,7 +810,7 @@ exports.createPlan = async (req, res) => {
     if (e.errno === 1062) {
       res.status(400).json({
         success : false,
-        message : `Error: App '${Plan_MVP_name}' already exists`
+        message : `Error: Plan '${Plan_MVP_name}' already exists`
       });
       return;  
     }
@@ -926,10 +934,19 @@ exports.createTask = async (req, res) => {
   let username = req.user.username;
   
   //Check if any of the required parameters are not provided
-  if (!Task_name || !Task_app_Acronym) {
+  if (!Task_name) {
     res.status(400).json({
       success : false,
-      message : 'Error: Task Name and App Acronym must be provided',
+      message : 'Error: Task Name must be provided',
+    })
+    return;
+  }
+  
+  //Check if any of the required parameters are not provided
+  if (!Task_app_Acronym) {
+    res.status(400).json({
+      success : false,
+      message : 'Error: App Acronym must be provided',
     })
     return;
   }
