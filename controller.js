@@ -1,6 +1,7 @@
 const connection = require("./config/database");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const nodemailer = require("nodemailer");
 
 /* U1: Login & Logout */ 
 
@@ -701,7 +702,6 @@ const checkPermit = async (user, Task_id) => {
   }
   
   // Return error if no permitted group specified or user does not have permitted group
-  console.log(permittedGroup);
   if (!permittedGroup || !user.group_list.includes(`,${permittedGroup},`)) {
     return {
       code : 403,
@@ -710,7 +710,7 @@ const checkPermit = async (user, Task_id) => {
     }
   } else {
     // Check if user group has permitted group
-    return Task.Task_state;
+    return Task;
   }
 }
 
@@ -1210,10 +1210,10 @@ exports.promoteTask = async (req, res) => {
   }
   
   // Check if current user can promote current task
-  const check = await checkPermit(req.user, Task_id)
+  const task = await checkPermit(req.user, Task_id)
 
-  if (check.code) {
-    res.status(check.code).json({
+  if (task.code) {
+    res.status(task.code).json({
       success : false,
       message : check.message
     })
@@ -1222,7 +1222,7 @@ exports.promoteTask = async (req, res) => {
 
   //Depending on the current state, we will update the state to the next state
   let nextState;
-  switch (check) {
+  switch (task.Task_state) {
     case "Open":
       nextState = "ToDo"
       break
@@ -1239,49 +1239,23 @@ exports.promoteTask = async (req, res) => {
       nextState = "Close"
   }
 
-  let Task_notes;
-  // Get previous task notes
-  try {
-    let result = await connection.promise().execute(
-      "SELECT `Task_notes` FROM task WHERE `Task_id`=?",
-      [Task_id]
-    )
-    
-    if (result[0][0]) {
-      Task_notes = result[0][0].Task_notes;
-    } else {
-      res.status(400).json({
-        success : false,
-        message : `Error: Task '${Task_id}' does not exist`
-      });
-      return;
-    }
-    
-  } catch(e) {
-    res.status(500).json({
-      success : false,
-      message : e
-    });
-    return;
-  }
-
   // Update notes with audit trail
   const currentDateTime = new Date().toLocaleString();
   if (!New_notes) {New_notes=""};
-  Task_notes = New_notes +
+  task.Task_notes = New_notes +
   `
   \nPromoted to ${nextState}
   \nUser: ${Task_owner}
   \nDatetime: ${currentDateTime}
   \n
   `
-  + Task_notes;
+  + task.Task_notes;
 
   // Update task with new notes and state and update task owner
   try {
     result = await connection.promise().execute(
       "UPDATE task SET `Task_notes`=?, `Task_state`=?, `Task_owner`=? WHERE `Task_id`=?", 
-      [Task_notes, nextState, Task_owner, Task_id]
+      [task.Task_notes, nextState, Task_owner, Task_id]
     )
   
     if (result[0].affectedRows === 0) {
@@ -1291,12 +1265,18 @@ exports.promoteTask = async (req, res) => {
       })
       return;
     }
-  
+    
     // Return successful update
-    return res.status(200).json({
+    res.status(200).json({
       success : true,
       message : `Success: Task '${Task_id}' promoted`,
     })
+
+    // If task was in Doing state and set to Done, send email
+    if (task.Task_state === "Doing" && nextState === "Done") {
+      console.log("sending email");
+      sendEmailToProjectLead(task.Task_name, Task_owner, task.Task_app_Acronym)
+    }
   } catch(e) {
     res.status(500).json({
       success : false,
@@ -1328,12 +1308,12 @@ exports.rejectTask = async (req, res) => {
   }
 
   // Check if current user can promote current task
-  const check = await checkPermit(req.user, Task_id)
+  const task = await checkPermit(req.user, Task_id)
 
-  if (check.code) {
-    res.status(check.code).json({
+  if (task.code) {
+    res.status(task.code).json({
       success : false,
-      message : check.message
+      message : task.message
     })
     return;
   }
@@ -1345,49 +1325,23 @@ exports.rejectTask = async (req, res) => {
   // Handle optional parameter
   if (!Task_plan) {Task_plan = null};
 
-  let Task_notes;
-  // Get previous task notes
-  try {
-    let result = await connection.promise().execute(
-      "SELECT `Task_notes` FROM task WHERE `Task_id`=?",
-      [Task_id]
-    )
-    
-    if (result[0][0]) {
-      Task_notes = result[0][0].Task_notes;
-    } else {
-      res.status(400).json({
-        success : false,
-        message : `Error: Task '${Task_id}' does not exist`
-      });
-      return;
-    }
-    
-  } catch(e) {
-    res.status(500).json({
-      success : false,
-      message : e
-    });
-    return;
-  }
-
   // Update notes with audit trail
   const currentDateTime = new Date().toLocaleString();
   if (!New_notes) {New_notes=""};
-  Task_notes = New_notes +
+  task.Task_notes = New_notes +
   `
   \nRejected to ${nextState}
   \nUser: ${Task_owner}
   \nDatetime: ${currentDateTime}
   \n
   `
-  + Task_notes;
+  + task.Task_notes;
 
   // Update task with new notes and state (and plan, if have) and update task owner
   try {
     result = await connection.promise().execute(
       "UPDATE task SET `Task_notes`=?, `Task_state`=?, `Task_owner`=?, `Task_plan`=? WHERE `Task_id`=?", 
-      [Task_notes, nextState, Task_owner, Task_plan, Task_id]
+      [task.Task_notes, nextState, Task_owner, Task_plan, Task_id]
     )
   
     if (result[0].affectedRows === 0) {
@@ -1433,12 +1387,12 @@ exports.returnTask = async (req, res) => {
   }
 
   // Check if current user can promote current task
-  const check = await checkPermit(req.user, Task_id)
+  const task = await checkPermit(req.user, Task_id)
 
-  if (check.code) {
-    res.status(check.code).json({
+  if (task.code) {
+    res.status(task.code).json({
       success : false,
-      message : check.message
+      message : task.message
     })
     return;
   }
@@ -1447,49 +1401,23 @@ exports.returnTask = async (req, res) => {
   // For returning of task, next state is ToDo
   let nextState = "ToDo";
 
-  let Task_notes;
-  // Get previous task notes
-  try {
-    let result = await connection.promise().execute(
-      "SELECT `Task_notes` FROM task WHERE `Task_id`=?",
-      [Task_id]
-    )
-    
-    if (result[0][0]) {
-      Task_notes = result[0][0].Task_notes;
-    } else {
-      res.status(400).json({
-        success : false,
-        message : `Error: Task '${Task_id}' does not exist`
-      });
-      return;
-    }
-    
-  } catch(e) {
-    res.status(500).json({
-      success : false,
-      message : e
-    });
-    return;
-  }
-
   // Update notes with audit trail
   const currentDateTime = new Date().toLocaleString();
   if (!New_notes) {New_notes=""};
-  Task_notes = New_notes +
+  task.Task_notes = New_notes +
   `
   \nReturned to ${nextState}
   \nUser: ${Task_owner}
   \nDatetime: ${currentDateTime}
   \n
   `
-  + Task_notes;
+  + task.Task_notes;
 
   // Update task with new notes and state (and plan, if have) and update task owner
   try {
     result = await connection.promise().execute(
       "UPDATE task SET `Task_notes`=?, `Task_state`=?, `Task_owner`=? WHERE `Task_id`=?", 
-      [Task_notes, nextState, Task_owner, Task_id]
+      [task.Task_notes, nextState, Task_owner, Task_id]
     )
   
     if (result[0].affectedRows === 0) {
@@ -1626,5 +1554,58 @@ exports.assignTaskToPlan = async (req, res) => {
 };
 
 /* End of Task Routes */
+
+// Send email to users App_permit_Done group for an app
+// when any task is set to Done state for that app
+async function sendEmailToProjectLead(taskName, taskOwner, Task_app_acronym) {
+  //We need to pull the App_permit_Done group
+  let result = await connection.promise().query("SELECT * FROM application WHERE App_Acronym = ?", [Task_app_acronym])
+
+  const groupname = result[0][0].App_permit_Done;
+
+  //We need to pull the emails of all
+  result = await connection.promise().query(
+    "SELECT * FROM user WHERE group_list LIKE ?", 
+    [`%,${groupname},%`]
+  )
+
+  const users = result[0];
+
+  //We need to pull the emails of all users that are in the group
+  let emails = []
+  for (let i = 0; i < users.length; i++) {
+    const user = users[i];
+    if (user.email) {
+      emails.push(user.email);
+    }
+  }
+
+  // Set up transporter
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: process.env.SMTP_PORT,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS
+    }
+  })
+
+  // Define mail options
+  const mailOptions = {
+    from: `${process.env.SMTP_FROM_NAME} <${process.env.SMTP_FROM_EMAIL}>`,
+    to: emails, // Replace with the actual project lead's email
+    subject: `Task Promotion Notification`,
+    text: `The task "${taskName}" has been promoted to "Done" by ${taskOwner}.`
+  }
+  console.log(emails);
+
+  // Send the email
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log("Email sent successfully.")
+  } catch (error) {
+    console.error("Failed to send email:", error)
+  }
+}
 
 /* End of Assigment 2 */ 
