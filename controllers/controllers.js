@@ -378,7 +378,7 @@ Assignment 2 stuff below, will be implementing the kanban board functionalities
 
 //Get all applications => /controller/getApplications
 exports.getApplications = catchAsyncErrors(async (req, res, next) => {
-  const [rows, fields] = await connection.promise().query("SELECT * FROM applications")
+  const [rows, fields] = await connection.promise().query("SELECT * FROM application")
   res.status(200).json({
     success: true,
     data: rows
@@ -416,7 +416,7 @@ exports.getApplications = catchAsyncErrors(async (req, res, next) => {
 */
 exports.createApplication = catchAsyncErrors(async (req, res, next) => {
   //Check if user is authorized to create application
-  let { App_Acronym, App_Description, App_Rnumber, App_startDate, App_endDate, App_permit_Create, App_permit_Open, App_permit_toDoList, App_permit_Doing, App_permit_Done } = req.body
+  let { App_Acronym, App_Description, App_Rnumber, App_startDate, App_endDate, App_permit_create, App_permit_Open, App_permit_toDoList, App_permit_Doing, App_permit_Done } = req.body
 
   //Check if any of the required parameters are not provided
   if (!App_Acronym || !App_Description || !App_Rnumber) {
@@ -441,8 +441,8 @@ exports.createApplication = catchAsyncErrors(async (req, res, next) => {
   if (!App_endDate) {
     App_endDate = null
   }
-  if (!App_permit_Create) {
-    App_permit_Create = null
+  if (!App_permit_create) {
+    App_permit_create = null
   }
   if (!App_permit_Open) {
     App_permit_Open = null
@@ -458,7 +458,7 @@ exports.createApplication = catchAsyncErrors(async (req, res, next) => {
   }
 
   //Insert application into database
-  const result = await connection.promise().execute("INSERT INTO application (App_Acronym, App_Description, App_Rnumber, App_startDate, App_endDate, App_permit_Create, App_permit_Open, App_permit_toDoList, App_permit_Doing, App_permit_Done) VALUES (?,?,?,?,?,?,?,?,?,?)", [App_Acronym, App_Description, App_Rnumber, App_startDate, App_endDate, App_permit_Create, App_permit_Open, App_permit_toDoList, App_permit_Doing, App_permit_Done])
+  const result = await connection.promise().execute("INSERT INTO application (App_Acronym, App_Description, App_Rnumber, App_startDate, App_endDate, App_permit_create, App_permit_Open, App_permit_toDoList, App_permit_Doing, App_permit_Done) VALUES (?,?,?,?,?,?,?,?,?,?)", [App_Acronym, App_Description, App_Rnumber, App_startDate, App_endDate, App_permit_create, App_permit_Open, App_permit_toDoList, App_permit_Doing, App_permit_Done])
   if (result[0].affectedRows === 0) {
     return next(new ErrorResponse("Failed to create application", 500))
   }
@@ -498,10 +498,18 @@ exports.createApplication = catchAsyncErrors(async (req, res, next) => {
 */
 exports.updateApplication = catchAsyncErrors(async (req, res, next) => {
   //Check if user is authorized to update application
-  const App_Acronym = req.params.App_Acronym
+  const App_Acronym = req.body.App_Acronym
   const [row, fields] = await connection.promise().query("SELECT * FROM application WHERE App_Acronym = ?", [App_Acronym])
   if (row.length === 0) {
     return next(new ErrorResponse("Application does not exist", 404))
+  }
+
+  //Convert the startDate and endDate to just a simple YYYY-MM-DD format
+  if (req.body.App_startDate) {
+    req.body.App_startDate = req.body.App_startDate.slice(0, 10)
+  }
+  if (req.body.App_endDate) {
+    req.body.App_endDate = req.body.App_endDate.slice(0, 10)
   }
 
   //Since all the parameters are optional, we need to build the query dynamically, if the parameter is not provided, we will not update it
@@ -519,9 +527,9 @@ exports.updateApplication = catchAsyncErrors(async (req, res, next) => {
     query += "App_endDate = ?, "
     values.push(req.body.App_endDate)
   }
-  if (req.body.App_permit_Create) {
+  if (req.body.App_permit_create) {
     query += "App_permit_Create = ?, "
-    values.push(req.body.App_permit_Create)
+    values.push(req.body.App_permit_create)
   }
   if (req.body.App_permit_Open) {
     query += "App_permit_Open = ?, "
@@ -636,10 +644,16 @@ exports.getTasksByApp = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorResponse("Application does not exist", 404))
   }
   const application = row[0]
-  const [row2, fields2] = await connection.promise().query("SELECT * FROM task WHERE Task_app_acronym = ?", [App_Acronym])
+  //I want to pull out all the tasks that belong to this application as well as the Plan_color that belongs to each task
+  //SELECT task.*, plan.Plan_color FROM task LEFT JOIN plan ON task.Task_plan = plan.Plan_MVP_name WHERE Task_app_Acronym = "test";
+  const [row2, fields2] = await connection.promise().query("SELECT task.*, plan.Plan_color FROM task LEFT JOIN plan ON task.Task_plan = plan.Plan_MVP_name WHERE Task_app_Acronym = ?", [App_Acronym])
   if (row2.length === 0) {
     return next(new ErrorResponse("No tasks found", 404))
   }
+  // const [row2, fields2] = await connection.promise().query("SELECT * FROM task WHERE Task_app_acronym = ?", [App_Acronym])
+  // if (row2.length === 0) {
+  //   return next(new ErrorResponse("No tasks found", 404))
+  // }
   res.status(200).json({
     success: true,
     data: row2
@@ -655,7 +669,6 @@ exports.getTasksByApp = catchAsyncErrors(async (req, res, next) => {
 * - Task_notes (string), (optional) => notes of the task
 * - Task_id (string), (generated) => id of the task, this is the primary key. This is a combination of the application acronym and the application R number. 
     Take in App_Acronym as a parameter and get the R number from the application table then generate the Task_id
-* - Task_plan (string), (optional) => plan of the task
 * - Task_app_acronym (string), (generated) => acronym of the application that the task belongs to
 * - Task_state (string), (generated) => state of the task, default to open.
 * - Task_creator (string), (generated) => creator of the task, default to current user's username
@@ -678,11 +691,17 @@ exports.getTasksByApp = catchAsyncErrors(async (req, res, next) => {
 */
 exports.createTask = catchAsyncErrors(async (req, res, next) => {
   //Check if user is authorized to create task
-  let { Task_name, Task_description, Task_notes, Task_plan, Task_app_acronym } = req.body
+  let { Task_name, Task_description, Task_app_Acronym } = req.body
   let user = req.user.username
 
+  //Check if user is allowed to perform the action
+  const validate = await validatePermit(Task_app_Acronym, "create", req.user.username)
+  if (!validate) {
+    return next(new ErrorResponse("You are not authorised", 403))
+  }
+
   //Check if any of the required parameters are not provided
-  if (!Task_name || !Task_app_acronym) {
+  if (!Task_name || !Task_app_Acronym) {
     return next(new ErrorResponse("Invalid input", 400))
   }
 
@@ -690,24 +709,21 @@ exports.createTask = catchAsyncErrors(async (req, res, next) => {
   if (!Task_description) {
     Task_description = null
   }
-  if (!Task_notes) {
-    Task_notes = null
-  }
-  if (!Task_plan) {
-    Task_plan = null
-  }
+
+  //Generate the Task_notes like this: "Task created by {user} on {date}". Date is in the format YYYY-MM-DD. This is using current local time
+  const Task_notes = "Task created by " + user + " on " + new Date().toISOString().slice(0, 10)
 
   //Generate Task_id
-  const [row, fields] = await connection.promise().query("SELECT * FROM application WHERE App_Acronym = ?", [Task_app_acronym])
+  const [row, fields] = await connection.promise().query("SELECT * FROM application WHERE App_Acronym = ?", [Task_app_Acronym])
   if (row.length === 0) {
     return next(new ErrorResponse("Application does not exist", 404))
   }
 
   const application = row[0]
-  const Task_id = Task_app_acronym + application.App_Rnumber
+  const Task_id = Task_app_Acronym + application.App_Rnumber
 
   //Generate Task_app_acronym
-  Task_app_acronym = application.App_Acronym
+  Task_app_Acronym = application.App_Acronym
 
   //Generate Task_state
   const Task_state = "Open"
@@ -721,17 +737,16 @@ exports.createTask = catchAsyncErrors(async (req, res, next) => {
   //Generate Task_createDate, the date is in the format YYYY-MM-DD HH:MM:SS. This is using current local time
   const Task_createDate = new Date().toISOString().slice(0, 19).replace("T", " ")
   //@TODO make it use local timezone.
-  console.log(Task_createDate)
 
   //Insert task into database
-  const result = await connection.promise().execute("INSERT INTO task (Task_name, Task_description, Task_notes, Task_id, Task_plan, Task_app_acronym, Task_state, Task_creator, Task_owner, Task_createDate) VALUES (?,?,?,?,?,?,?,?,?,?)", [Task_name, Task_description, Task_notes, Task_id, Task_plan, Task_app_acronym, Task_state, Task_creator, Task_owner, Task_createDate])
+  const result = await connection.promise().execute("INSERT INTO task (Task_name, Task_description, Task_notes, Task_id, Task_plan, Task_app_acronym, Task_state, Task_creator, Task_owner, Task_createDate) VALUES (?,?,?,?,?,?,?,?,?,?)", [Task_name, Task_description, Task_notes, Task_id, null, Task_app_Acronym, Task_state, Task_creator, Task_owner, Task_createDate])
   if (result[0].affectedRows === 0) {
     return next(new ErrorResponse("Failed to create task", 500))
   }
 
   //Increment the application R number
   const newApp_Rnumber = application.App_Rnumber + 1
-  const result2 = await connection.promise().execute("UPDATE application SET App_Rnumber = ? WHERE App_Acronym = ?", [newApp_Rnumber, Task_app_acronym])
+  const result2 = await connection.promise().execute("UPDATE application SET App_Rnumber = ? WHERE App_Acronym = ?", [newApp_Rnumber, Task_app_Acronym])
   if (result2[0].affectedRows === 0) {
     return next(new ErrorResponse("Something went wrong...", 500))
     //We should delete the task that was just created
@@ -792,7 +807,6 @@ exports.getTask = catchAsyncErrors(async (req, res, next) => {
 * This function is accessible only by groups inside the permit of the task state.
 */
 exports.updateNotes = catchAsyncErrors(async (req, res, next) => {
-  //Check if user is authorized to update notes
   const Task_id = req.params.Task_id
   const [row, fields] = await connection.promise().query("SELECT * FROM task WHERE Task_id = ?", [Task_id])
   if (row.length === 0) {
@@ -809,6 +823,11 @@ exports.updateNotes = catchAsyncErrors(async (req, res, next) => {
   if (!req.body.Task_notes) {
     return next(new ErrorResponse("Invalid input", 400))
   }
+
+  //We should append the notes to the existing notes, so we need to get the existing notes first
+  const existing_notes = row[0].Task_notes
+  //Append the existing notes with the new notes
+  req.body.Task_notes = req.body.Task_notes + "\n\n" + existing_notes
 
   //Update notes
   const result = await connection.promise().execute("UPDATE task SET Task_notes = ? WHERE Task_id = ?", [req.body.Task_notes, Task_id])
@@ -850,6 +869,9 @@ const validatePermit = catchAsyncErrors(async (App_Acronym, Task_state, user) =>
   //Depending on the state, access the permit of the application
   let permit_state
   switch (Task_state) {
+    case "create":
+      permit_state = application.App_permit_create
+      break
     case "Open":
       permit_state = application.App_permit_Open
       break
@@ -870,9 +892,6 @@ const validatePermit = catchAsyncErrors(async (App_Acronym, Task_state, user) =>
     return false
   }
 
-  //Split the permit by comma
-  const permit_list = permit_state.split(",")
-
   //Get user's groups
   const [row2, fields3] = await connection.promise().query("SELECT * FROM user WHERE username = ?", [user])
   if (row2.length === 0) {
@@ -883,13 +902,8 @@ const validatePermit = catchAsyncErrors(async (App_Acronym, Task_state, user) =>
   const user_groups = row2[0].group_list.split(",")
   //Check if any of the user's groups is included in the permit array, then the user is authorized. The group has to match exactly
   //for each group in the group array, check match exact as group parameter
-  authorised = false
-  for (let i = 0; i < user_groups.length; i++) {
-    if (permit_list.includes(user_groups[i])) {
-      authorised = true
-      break
-    }
-  }
+  const authorised = user_groups.includes(permit_state)
+  //Since permit can only have one group, we just need to check if the user's groups contains the permit
   if (!authorised) {
     return false
   }
@@ -921,7 +935,6 @@ const validatePermit = catchAsyncErrors(async (App_Acronym, Task_state, user) =>
 * This function is accessible only by groups inside the permit of the task state.
 */
 exports.promoteTask = catchAsyncErrors(async (req, res, next) => {
-  //Check if user is authorized to promote task
   const Task_id = req.params.Task_id
   const [row, fields] = await connection.promise().query("SELECT * FROM task WHERE Task_id = ?", [Task_id])
   if (row.length === 0) {
@@ -967,11 +980,11 @@ exports.promoteTask = catchAsyncErrors(async (req, res, next) => {
     Added_Task_notes = Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState
   } else {
     //Get the Task_notes from the req.body.Task_notes and append {Task_owner} moved {Task_name} from {Task_state} to {nextState} to the end of Task_note
-    Added_Task_notes = req.body.Task_notes + "\n" + Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState
+    Added_Task_notes = Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState + "\n" + req.body.Task_notes
   }
 
   //Append Task_notes to the preexisting Task_notes
-  const Task_notes = Added_Task_notes + "\n" + row[0].Task_notes
+  const Task_notes = Added_Task_notes + "\n\n" + row[0].Task_notes
   //Update the task
   const result = await connection.promise().execute("UPDATE task SET Task_notes = ?, Task_state = ?, Task_owner = ? WHERE Task_id = ?", [Task_notes, nextState, Task_owner, Task_id])
   if (result[0].affectedRows === 0) {
@@ -1009,7 +1022,6 @@ exports.promoteTask = catchAsyncErrors(async (req, res, next) => {
 * This function is accessible only by groups inside the permit of the task state.
 */
 exports.rejectTask = catchAsyncErrors(async (req, res, next) => {
-  //Check if user is authorized to reject task
   const Task_id = req.params.Task_id
   const [row, fields] = await connection.promise().query("SELECT * FROM task WHERE Task_id = ?", [Task_id])
   if (row.length === 0) {
@@ -1039,11 +1051,11 @@ exports.rejectTask = catchAsyncErrors(async (req, res, next) => {
     Added_Task_notes = Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState
   } else {
     //Get the Task_notes from the req.body.Task_notes and append {Task_owner} moved {Task_name} from {Task_state} to {nextState} to the end of Task_note
-    Added_Task_notes = req.body.Task_notes + "\n" + Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState
+    Added_Task_notes = Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState + "\n" + req.body.Task_notes
   }
 
   //Append Task_notes to the preexisting Task_notes
-  const Task_notes = Added_Task_notes + "\n" + row[0].Task_notes
+  const Task_notes = Added_Task_notes + "\n\n" + row[0].Task_notes
 
   //Task_plan can be updated if it is provided
   let Task_plan
@@ -1119,11 +1131,11 @@ exports.returnTask = catchAsyncErrors(async (req, res, next) => {
     Added_Task_notes = Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState
   } else {
     //Get the Task_notes from the req.body.Task_notes and append {Task_owner} moved {Task_name} from {Task_state} to {nextState} to the end of Task_note
-    Added_Task_notes = req.body.Task_notes + "\n" + Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState
+    Added_Task_notes = Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState + "\n" + req.body.Task_notes
   }
 
   //Append Task_notes to the preexisting Task_notes
-  const Task_notes = Added_Task_notes + "\n" + row[0].Task_notes
+  const Task_notes = Added_Task_notes + "\n\n" + row[0].Task_notes
 
   //Update the task
   const result = await connection.promise().execute("UPDATE task SET Task_notes = ?, Task_state = ?, Task_owner = ? WHERE Task_id = ?", [Task_notes, nextState, Task_owner, Task_id])
@@ -1308,6 +1320,10 @@ exports.createPlan = catchAsyncErrors(async (req, res, next) => {
 * This function is accessible only by users with the group "projectlead" in the application.
 */
 exports.updatePlan = catchAsyncErrors(async (req, res, next) => {
+  //If both startDate and endDate are not provided, we will throw an error
+  if (!req.body.Plan_startDate && !req.body.Plan_endDate) {
+    return next(new ErrorResponse("Invalid input", 400))
+  }
   //Check if user is authorized to update plan
   const { Plan_app_Acronym, Plan_MVP_name } = req.body
   const [row, fields] = await connection.promise().query("SELECT * FROM plan WHERE Plan_app_Acronym = ? AND Plan_MVP_name = ?", [Plan_app_Acronym, Plan_MVP_name])
@@ -1415,11 +1431,11 @@ exports.assignTaskToPlan = catchAsyncErrors(async (req, res, next) => {
     Added_Task_notes = Task_owner + " assigned " + row2[0].Task_name + " to " + Plan_MVP_name
   } else {
     //Get the Task_notes from the req.body.Task_notes and append {Task_owner} assigned {Task_name} to {Plan_MVP_name} to the end of Task_note
-    Added_Task_notes = req.body.Task_notes + "\n" + Task_owner + " assigned " + row2[0].Task_name + " to " + Plan_MVP_name
+    Added_Task_notes = Task_owner + " assigned " + row2[0].Task_name + " to " + Plan_MVP_name + "\n" + req.body.Task_notes
   }
 
   //Append Task_notes to the preexisting Task_notes
-  const Task_notes = Added_Task_notes + "\n" + row2[0].Task_notes
+  const Task_notes = Added_Task_notes + "\n\n" + row2[0].Task_notes
 
   //Update the task including the task_owner
   const result = await connection.promise().execute("UPDATE task SET Task_notes = ?, Task_plan = ?, Task_owner = ? WHERE Task_id = ?", [Task_notes, Plan_MVP_name, Task_owner, Task_id])
