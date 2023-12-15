@@ -467,6 +467,34 @@ exports.getAllApps = async (req, res) => {
   }
 };
 
+// Show application detail by app_acronym
+// GET to '/getAppById'
+exports.getAppById = async (req, res) => {
+  const App_Acronym = req.params.App_Acronym;
+
+  // DB select application details by app_acronym
+  try {
+    const result = await connection.promise().execute(
+      "SELECT * FROM application WHERE `App_Acronym` = ?",
+      [App_Acronym]
+    )
+    
+    // Return all users account details
+    return res.status(200).json({
+      success : true,
+      message : `Success: Application '${App_Acronym}' returned`,
+      data : result[0][0]
+    });
+    
+  } catch(e) {
+    res.status(500).json({
+      success : false,
+      message : e
+    });
+    return;
+  }
+};
+
 // Create application
 // POST to '/createApp'
 exports.createApp = async (req, res) => {

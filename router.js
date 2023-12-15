@@ -13,6 +13,7 @@ const {
     updateUser,
     toggleUserStatus,
     getAllApps,
+    getAppById,
     createApp,
     updateApp,
     getPlansByApp,
@@ -45,6 +46,7 @@ router.route("/Checkgroup").post(isUserValid, checkingGroup);
 
 // Application routes
 router.route("/getAllApps").get(isUserValid, getAllApps);
+router.route("/getAppById/:App_Acronym").get(isUserValid, getAppById)
 router.route("/createApp").post(isUserValid, authorizedGroups("pl"), createApp);
 router.route("/updateApp").post(isUserValid, authorizedGroups("pl"), updateApp);
 
