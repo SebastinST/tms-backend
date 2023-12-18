@@ -183,23 +183,27 @@ exports.isUserPermitted = async (req, res, next) => {
     // Variable to store permitted group for task requested
     let permittedGroup;
 
-    switch (req.task.Task_state) {
-        case "Open":
-            permittedGroup = req.app.App_permit_Open;
-            break;
-        case "ToDo":
-            permittedGroup = req.app.App_permit_toDoList;
-            break;
-        case "Doing":
-            permittedGroup = req.app.App_permit_Doing;
-            break;
-        case "Done":
-            permittedGroup = req.app.App_permit_Done;
-            break;
-        default:
-            permittedGroup = req.app.App_permit_create;
-            break;
+    const task = req.task;
+
+    if (task) {
+        switch (task.Task_state) {
+            case "Open":
+                permittedGroup = req.app.App_permit_Open;
+                break;
+            case "ToDo":
+                permittedGroup = req.app.App_permit_toDoList;
+                break;
+            case "Doing":
+                permittedGroup = req.app.App_permit_Doing;
+                break;
+            case "Done":
+                permittedGroup = req.app.App_permit_Done;
+                break;
+        }
+    } else {
+        permittedGroup = req.app.App_permit_create;
     }
+    
 
     // Return error if no permitted group specified or user does not have permitted group
     if (!permittedGroup || !req.user.group_list.includes(`,${permittedGroup},`)) {
