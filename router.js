@@ -29,7 +29,14 @@ const {
     assignTaskToPlan
 } = require("./controller");
 
-const { isUserValid, authorizedGroups, protectAdmin, checkingGroup } = require("./auth")
+const { 
+    isUserValid, 
+    authorizedGroups, 
+    protectAdmin, 
+    checkingGroup,
+    getTaskAndApp,
+    isUserPermitted
+} = require("./auth")
 
 // User & Admin routes
 router.route("/login").post(login);
@@ -57,12 +64,37 @@ router.route("/updatePlan").post(isUserValid, authorizedGroups("pm"), updatePlan
 
 // Task routes
 router.route("/getTasksByApp/:App_Acronym").get(isUserValid, getTasksByApp);
-router.route("/createTask").post(isUserValid, createTask);
+router.route("/createTask").post(
+    isUserValid, 
+    getTaskAndApp,
+    isUserPermitted,
+    createTask
+);
 router.route("/getTaskById/:Task_id").get(isUserValid, getTaskById);
-router.route("/addTaskNotes").post(isUserValid, addTaskNotes);
-router.route("/promoteTask").post(isUserValid, promoteTask);
-router.route("/rejectTask").post(isUserValid, rejectTask);
-router.route("/returnTask").post(isUserValid, returnTask);
-router.route("/assignTaskToPlan").post(isUserValid, assignTaskToPlan);
+router.route("/addTaskNotes").post(isUserValid, getTaskAndApp, addTaskNotes);
+router.route("/promoteTask").post(
+    isUserValid, 
+    getTaskAndApp, 
+    isUserPermitted, 
+    promoteTask
+);
+router.route("/rejectTask").post(
+    isUserValid, 
+    getTaskAndApp, 
+    isUserPermitted, 
+    rejectTask
+);
+router.route("/returnTask").post(
+    isUserValid, 
+    getTaskAndApp, 
+    isUserPermitted, 
+    returnTask
+);
+router.route("/assignTaskToPlan").post(
+    isUserValid, 
+    getTaskAndApp, 
+    isUserPermitted, 
+    assignTaskToPlan
+);
 
 module.exports = router;

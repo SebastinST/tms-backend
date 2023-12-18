@@ -670,78 +670,6 @@ exports.updateApp = async (req, res) => {
 
 /* M1: Plan Routes */
 
-// Random Color generator
-const getRandomColor = () => {
-  const letters = "0123456789ABCDEF"
-  let color = "#"
-  for (let i = 0; i < 6; i++) {
-    color += letters[Math.floor(Math.random() * 16)]
-  }
-
-  return color
-};
-
-// Check Permit
-const checkPermit = async (user, Task_id) => {
-  // Check if user can edit current Task_id (check permit columns in app table)
-  // Return current Task_state if permitted for task in current state
-  let permittedGroup;
-  let Task;
-  try {
-    // Get task current state from DB
-    let getTask = await connection.promise().execute(
-      "SELECT * FROM task WHERE `Task_id`=?",
-      [Task_id]
-    );
-
-    Task = getTask[0][0];
-
-    // Get application information from DB
-    let getApp = await connection.promise().execute(
-      "SELECT * FROM application WHERE `App_Acronym`=?",
-      [Task.Task_app_Acronym]
-    );
-
-    const application = getApp[0][0];
-    
-    // Get permitted group from application based on current task state
-    switch (Task.Task_state) {
-      case "Open":
-        permittedGroup = application.App_permit_Open
-        break
-      case "ToDo":
-        permittedGroup = application.App_permit_toDoList
-        break
-      case "Doing":
-        permittedGroup = application.App_permit_Doing
-        break
-      case "Done":
-        permittedGroup = application.App_permit_Done
-        break
-    }
-
-  } catch(e) {
-    // CONTINUE: Find out error code for not found app acronym/ task
-    return {
-      code : 500,
-      success : false, 
-      message : e
-    }
-  }
-  
-  // Return error if no permitted group specified or user does not have permitted group
-  if (!permittedGroup || !user.group_list.includes(`,${permittedGroup},`)) {
-    return {
-      code : 403,
-      success : false, 
-      message : `Error: User ${user.username} is not authorised`
-    }
-  } else {
-    // Check if user group has permitted group
-    return Task;
-  }
-}
-
 // M1: Show all plan details by app acronym 'ABC'
 // GET to '/getPlansByApp/ABC'
 exports.getPlansByApp = async (req, res) => {
@@ -800,7 +728,14 @@ exports.createPlan = async (req, res) => {
 
   // If Plan_color not provided, generate random color
   if (!Plan_color) {
-    Plan_color = getRandomColor();
+    Plan_color = () => {
+      const letters = "0123456789ABCDEF";
+      let color = "#";
+      for (let i = 0; i < 6; i++) {
+        color += letters[Math.floor(Math.random() * 16)]
+      };
+      return color;
+    }
   }
 
   // Handle optional parameters
@@ -1077,7 +1012,7 @@ exports.createTask = async (req, res) => {
 
     res.status(500).json({
       success : false,
-      message : "hello"
+      message : e
     });
     return;
   }
@@ -1086,7 +1021,7 @@ exports.createTask = async (req, res) => {
 // U3: Show task by id
 // GET to '/getTaskById'
 exports.getTaskById = async (req, res) => {
-  const Task_id = req.params.Task_id
+  const Task_id = req.params.Task_id;
   
   //Check if the required parameter is not provided
   if (!Task_id) {
@@ -1132,65 +1067,35 @@ exports.getTaskById = async (req, res) => {
 // D1/D3: Dev add research/details in ToDo/Doing task state 
 // POST to '/addTaskNotes'
 exports.addTaskNotes = async (req, res) => {
-  let {
-    Task_id, 
-    New_notes
-  } = req.body;
+  let { New_notes } = req.body;
 
-  // Get username from token
+  // Get username and task ID from request
   const Task_owner = req.user.username;
+  const Task_id = req.task.Task_id;
 
   //Check if the required parameters are not provided
-  if (!New_notes || !Task_id) {
+  if (!New_notes) {
     res.status(400).json({
       success : false,
-      message : 'Error: Task ID and New notes must be provided',
+      message : 'Error: New notes must be provided',
     })
     return;
   }
 
-  let Task_notes;
-  // Get previous task notes
-  try {
-    let result = await connection.promise().execute(
-      "SELECT `Task_notes` FROM task WHERE `Task_id`=?",
-      [Task_id]
-    )
-    
-    if (result[0][0]) {
-      Task_notes = result[0][0].Task_notes;
-    } else {
-      res.status(400).json({
-        success : false,
-        message : `Error: Task '${Task_id}' does not exist`
-      });
-      return;
-    }
-    
-  } catch(e) {
-    res.status(500).json({
-      success : false,
-      message : e
-    });
-    return;
-  }
-
-  // Update notes with audit trail
-  const currentDateTime = new Date().toLocaleString();
-  Task_notes = New_notes +
+  // Update notes with new notes and audit trail
+  New_notes += New_notes +
   `
   \nNotes Added
   \nUser: ${Task_owner}
-  \nDatetime: ${currentDateTime}
-  \n
+  \nDatetime: ${new Date().toLocaleString()}
   `
-  + Task_notes;
+  + req.task.Task_notes;
 
   // Update task with new notes and update task owner
   try {
     result = await connection.promise().execute(
       "UPDATE task SET `Task_notes`=?, `Task_owner`=? WHERE `Task_id`=?", 
-      [Task_notes, Task_owner, Task_id]
+      [New_notes, Task_owner, Task_id]
     )
   
     if (result[0].affectedRows === 0) {
@@ -1207,6 +1112,7 @@ exports.addTaskNotes = async (req, res) => {
       message : `Success: Task '${Task_id}' updated`,
     })
   } catch(e) {
+    console.log(e);
     res.status(500).json({
       success : false,
       message : e,
@@ -1220,37 +1126,15 @@ exports.addTaskNotes = async (req, res) => {
 // L3: Review and mark complete task 'Done' to 'Close'
 // POST to '/promoteTask'
 exports.promoteTask = async (req, res) => {
-  let {
-    Task_id,
-    New_notes
-  } = req.body;
+  let { New_notes } = req.body;
 
-  // Get username from token
+  // Get username and task ID from request
   const Task_owner = req.user.username;
-
-  //Check if the required parameters are not provided
-  if (!Task_id) {
-    res.status(400).json({
-      success : false,
-      message : 'Error: Task ID must be provided',
-    })
-    return;
-  }
-  
-  // Check if current user can promote current task
-  const task = await checkPermit(req.user, Task_id)
-
-  if (task.code) {
-    res.status(task.code).json({
-      success : false,
-      message : check.message
-    })
-    return;
-  }
+  const Task_id = req.task.Task_id;
 
   //Depending on the current state, we will update the state to the next state
   let nextState;
-  switch (task.Task_state) {
+  switch (req.task.Task_state) {
     case "Open":
       nextState = "ToDo"
       break
@@ -1264,26 +1148,27 @@ exports.promoteTask = async (req, res) => {
       nextState = "Close"
       break
     default:
-      nextState = "Close"
+      res.status(403).json({
+        success : false,
+        message : `Error: Task in '${req.task.Task_state}' state cannot be promoted`
+      })
+      return;
   }
 
-  // Update notes with audit trail
-  const currentDateTime = new Date().toLocaleString();
-  if (!New_notes) {New_notes=""};
-  task.Task_notes = New_notes +
+  // Update notes with new notes and audit trail
+  New_notes += New_notes +
   `
-  \nPromoted to ${nextState}
+  \nPromoted to '${nextState}' state
   \nUser: ${Task_owner}
-  \nDatetime: ${currentDateTime}
-  \n
+  \nDatetime: ${new Date().toLocaleString()}
   `
-  + task.Task_notes;
+  + req.task.Task_notes;
 
   // Update task with new notes and state and update task owner
   try {
     result = await connection.promise().execute(
       "UPDATE task SET `Task_notes`=?, `Task_state`=?, `Task_owner`=? WHERE `Task_id`=?", 
-      [task.Task_notes, nextState, Task_owner, Task_id]
+      [New_notes, nextState, Task_owner, Task_id]
     )
   
     if (result[0].affectedRows === 0) {
@@ -1301,9 +1186,9 @@ exports.promoteTask = async (req, res) => {
     })
 
     // If task was in Doing state and set to Done, send email
-    if (task.Task_state === "Doing" && nextState === "Done") {
+    if (req.task.Task_state === "Doing" && nextState === "Done") {
       console.log("sending email");
-      sendEmailToProjectLead(task.Task_name, Task_owner, task.Task_app_Acronym)
+      sendEmailToProjectLead(req)
     }
   } catch(e) {
     res.status(500).json({
@@ -1317,35 +1202,18 @@ exports.promoteTask = async (req, res) => {
 // L3: Review and reject task 'Done' to 'Doing'
 // POST to '/rejectTask'
 exports.rejectTask = async (req, res) => {
-  let {
-    Task_id,
-    New_notes,
-    Task_plan
-  } = req.body;
+  let { New_notes, Task_plan } = req.body;
 
-  // Get username from token
+  // Get username and task ID from request
   const Task_owner = req.user.username;
+  const Task_id = req.task.Task_id;
 
-  //Check if the required parameters are not provided
-  if (!Task_id) {
-    res.status(400).json({
+  if (req.task.Task_state !== "Done") {
+    res.status(403).json({
       success : false,
-      message : 'Error: Task ID must be provided',
+      message : `Error: Task in '${req.task.Task_state}' state cannot be rejected`
     })
-    return;
   }
-
-  // Check if current user can promote current task
-  const task = await checkPermit(req.user, Task_id)
-
-  if (task.code) {
-    res.status(task.code).json({
-      success : false,
-      message : task.message
-    })
-    return;
-  }
-  // CONTINUE: Check if task is in 'Done' state
 
   // For rejecting task, next state for task will be 'Doing'
   let nextState = "Doing";
@@ -1353,23 +1221,20 @@ exports.rejectTask = async (req, res) => {
   // Handle optional parameter
   if (!Task_plan) {Task_plan = null};
 
-  // Update notes with audit trail
-  const currentDateTime = new Date().toLocaleString();
-  if (!New_notes) {New_notes=""};
-  task.Task_notes = New_notes +
+  // Update notes with new notes and audit trail
+  New_notes += New_notes +
   `
-  \nRejected to ${nextState}
+  \nRejected to '${nextState}' state
   \nUser: ${Task_owner}
-  \nDatetime: ${currentDateTime}
-  \n
+  \nDatetime: ${new Date().toLocaleString()}
   `
-  + task.Task_notes;
+  + req.task.Task_notes;
 
   // Update task with new notes and state (and plan, if have) and update task owner
   try {
     result = await connection.promise().execute(
       "UPDATE task SET `Task_notes`=?, `Task_state`=?, `Task_owner`=?, `Task_plan`=? WHERE `Task_id`=?", 
-      [task.Task_notes, nextState, Task_owner, Task_plan, Task_id]
+      [New_notes, nextState, Task_owner, Task_plan, req.task.Task_id]
     )
   
     if (result[0].affectedRows === 0) {
@@ -1397,55 +1262,35 @@ exports.rejectTask = async (req, res) => {
 // D4: Dev Return task 'Doing' to 'ToDo'
 // POST to '/returnTask'
 exports.returnTask = async (req, res) => {
-  let {
-    Task_id,
-    New_notes
-  } = req.body;
+  let { New_notes } = req.body;
 
-  // Get username from token
+  // Get username and task ID from request
   const Task_owner = req.user.username;
+  const Task_id = req.task.Task_id;
 
-  //Check if the required parameters are not provided
-  if (!Task_id) {
-    res.status(400).json({
+  if (req.task.Task_state !== "Doing") {
+    res.status(403).json({
       success : false,
-      message : 'Error: Task ID must be provided',
+      message : `Error: Task in '${req.task.Task_state}' state cannot be returned`
     })
-    return;
   }
-
-  // Check if current user can promote current task
-  const task = await checkPermit(req.user, Task_id)
-
-  if (task.code) {
-    res.status(task.code).json({
-      success : false,
-      message : task.message
-    })
-    return;
-  }
-  // CONTINUE: Check if task is in 'Doing' state
-
   // For returning of task, next state is ToDo
   let nextState = "ToDo";
 
-  // Update notes with audit trail
-  const currentDateTime = new Date().toLocaleString();
-  if (!New_notes) {New_notes=""};
-  task.Task_notes = New_notes +
+  // Update notes with new notes and audit trail
+  New_notes += New_notes +
   `
-  \nReturned to ${nextState}
+  \nReturned to '${nextState}' state
   \nUser: ${Task_owner}
-  \nDatetime: ${currentDateTime}
-  \n
+  \nDatetime: ${new Date().toLocaleString()}
   `
-  + task.Task_notes;
+  + req.task.Task_notes;
 
-  // Update task with new notes and state (and plan, if have) and update task owner
+  // Update task with new notes and state and update task owner
   try {
     result = await connection.promise().execute(
       "UPDATE task SET `Task_notes`=?, `Task_state`=?, `Task_owner`=? WHERE `Task_id`=?", 
-      [task.Task_notes, nextState, Task_owner, Task_id]
+      [New_notes, nextState, Task_owner, Task_id]
     )
   
     if (result[0].affectedRows === 0) {
@@ -1473,81 +1318,38 @@ exports.returnTask = async (req, res) => {
 // M3: Assign Task to plan
 // POST to '/assignTaskToPlan'
 exports.assignTaskToPlan = async (req, res) => {
-  let {
-    Task_id,
-    New_notes,
-    Task_plan
-  } = req.body;
+  let { New_notes, Task_plan } = req.body;
 
-  // Get username from token
+  // Get username and task ID from request
   const Task_owner = req.user.username;
-
-  //Check if the required parameters are not provided
-  if (!Task_id) {
-    res.status(400).json({
-      success : false,
-      message : 'Error: Task ID must be provided',
-    })
-    return;
-  }
+  const Task_id = req.task.Task_id;
   
   // Handle optional parameter
   if (!Task_plan) {Task_plan = null};
 
-  let Task_notes;
-  let Task_state;
-  // Get previous task notes and state
-  try {
-    let result = await connection.promise().execute(
-      "SELECT * FROM task WHERE `Task_id`=?",
-      [Task_id]
-    )
-    
-    if (result[0][0]) {
-      Task_notes = result[0][0].Task_notes;
-      Task_state = result[0][0].Task_state;
-    } else {
-      res.status(400).json({
-        success : false,
-        message : `Error: Task '${Task_id}' does not exist`
-      });
-      return;
-    }
-    
-  } catch(e) {
-    res.status(500).json({
-      success : false,
-      message : e
-    });
-    return;
-  }
-
   // Check if task is in 'Open' state
-  if (Task_state != "Open") {
+  if (req.task.Task_state !== "Open") {
     res.status(403).json({
       success : false,
-      message : `Error: Task '${Task_id}' is not in 'Open' state`
+      message : `Error: Task in '${req.task.Task_state}' state cannot be assigned a plan`
     });
     return;
   } 
 
-  // Update notes with audit trail
-  const currentDateTime = new Date().toLocaleString();
-  if (!New_notes) {New_notes=""};
-  Task_notes = New_notes +
+  // Update notes with new notes and audit trail
+  New_notes += New_notes +
   `
   \n${Task_plan ? "Changed Plan to " + Task_plan : "Removed Plan"}
   \nUser: ${Task_owner}
-  \nDatetime: ${currentDateTime}
-  \n
-  ` 
-  + Task_notes;
+  \nDatetime: ${new Date().toLocaleString()}
+  `
+  + req.task.Task_notes;
 
   // Update task with new notes and state (and plan, if have) and update task owner
   try {
     result = await connection.promise().execute(
       "UPDATE task SET `Task_notes`=?, `Task_owner`=?, `Task_plan`=? WHERE `Task_id`=?", 
-      [Task_notes, Task_owner, Task_plan, Task_id]
+      [New_notes, Task_owner, Task_plan, Task_id]
     )
   
     if (result[0].affectedRows === 0) {
@@ -1561,7 +1363,10 @@ exports.assignTaskToPlan = async (req, res) => {
     // Return successful update
     return res.status(200).json({
       success : true,
-      message : `Success: ${Task_plan ? "Task '" + Task_id + "' assigned to '" + Task_plan + "'": "Removed Plan from " + Task_id}`
+      message : `Success: ${Task_plan 
+        ? "Task '" + Task_id + "' assigned to '" + Task_plan + "'"
+        : "Removed Plan from " + Task_id
+      }`
     })
   } catch(e) {
     // Error code for missing plan
@@ -1585,15 +1390,13 @@ exports.assignTaskToPlan = async (req, res) => {
 
 // Send email to users App_permit_Done group for an app
 // when any task is set to Done state for that app
-async function sendEmailToProjectLead(taskName, taskOwner, Task_app_acronym) {
-  //We need to pull the App_permit_Done group
-  let result = await connection.promise().query("SELECT * FROM application WHERE App_Acronym = ?", [Task_app_acronym])
-
-  const groupname = result[0][0].App_permit_Done;
+async function sendEmailToProjectLead(req) {
+  
+  const groupname = req.app.App_permit_Done;
 
   //We need to pull the emails of all
-  result = await connection.promise().query(
-    "SELECT * FROM user WHERE group_list LIKE ?", 
+  let result = await connection.promise().query(
+    "SELECT * FROM user WHERE `group_list` LIKE ?", 
     [`%,${groupname},%`]
   )
 
@@ -1623,9 +1426,8 @@ async function sendEmailToProjectLead(taskName, taskOwner, Task_app_acronym) {
     from: `${process.env.SMTP_FROM_NAME} <${process.env.SMTP_FROM_EMAIL}>`,
     to: emails, // Replace with the actual project lead's email
     subject: `Task Promotion Notification`,
-    text: `The task "${taskName}" has been promoted to "Done" by ${taskOwner}.`
+    text: `The task "${req.task.task_name}" has been promoted to "Done" by ${req.user.username}.`
   }
-  console.log(emails);
 
   // Send the email
   try {

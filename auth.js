@@ -121,3 +121,94 @@ async function Checkgroup(userid, groupname) {
         return false;
     } 
 }
+
+// Get current task and app details to add in request
+// For anything to do with tasks
+exports.getTaskAndApp = async (req, res, next) => {
+    try {
+        if (req.body.Task_id) {
+            // Get current task_id requested
+            const Task_id = req.body.Task_id
+    
+            //Check if the required parameter is not provided
+            if (!Task_id) {
+                res.status(400).json({
+                success : false,
+                message : 'Error: Task ID must be provided',
+                })
+                return;
+            }
+            // Get task current state from DB
+            let getTask = await connection.promise().execute(
+                "SELECT * FROM task WHERE `Task_id`=?",
+                [Task_id]
+            );
+            
+            // Put current task details in request
+            req.task = getTask[0][0];
+    
+            // Get application information from DB
+            let getApp = await connection.promise().execute(
+                "SELECT * FROM application WHERE `App_Acronym`=?",
+                [req.task.Task_app_Acronym]
+            );
+            
+            // Put current app details in request
+            req.app = getApp[0][0];
+        } 
+        if (req.body.Task_app_Acronym) {
+            // Get application information from DB
+            let getApp = await connection.promise().execute(
+                "SELECT * FROM application WHERE `App_Acronym`=?",
+                [req.body.Task_app_Acronym]
+            );
+            
+            // Put current app details in request
+            req.app = getApp[0][0];
+        }
+    } catch(e) {
+        res.status(500).json({
+            success : false,
+            message : 'Error: Cannot get task/application',
+        })
+        return;
+    }
+
+    next();
+}
+
+// Check if user can EDIT current Task_id (check permit columns in app table)
+// For changes in task state / plan
+exports.isUserPermitted = async (req, res, next) => {
+    // Variable to store permitted group for task requested
+    let permittedGroup;
+
+    switch (req.task.Task_state) {
+        case "Open":
+            permittedGroup = req.app.App_permit_Open;
+            break;
+        case "ToDo":
+            permittedGroup = req.app.App_permit_toDoList;
+            break;
+        case "Doing":
+            permittedGroup = req.app.App_permit_Doing;
+            break;
+        case "Done":
+            permittedGroup = req.app.App_permit_Done;
+            break;
+        default:
+            permittedGroup = req.app.App_permit_create;
+            break;
+    }
+
+    // Return error if no permitted group specified or user does not have permitted group
+    if (!permittedGroup || !req.user.group_list.includes(`,${permittedGroup},`)) {
+        res.status(403).json({
+            success : false,
+            message : `Error: User '${req.user.username}' is not authorised`,
+        })
+        return;
+    } else {
+        next();
+    }
+}
