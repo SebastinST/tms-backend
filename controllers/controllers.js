@@ -597,31 +597,6 @@ exports.getApplication = catchAsyncErrors(async (req, res, next) => {
 })
 
 /*
-* getTasks => /controller/getTasks
-* This function will get all tasks from the database.
-
-* It will return the following:
-* - success (boolean) => true if successful, false if not
-* - data (array) => the tasks array
-
-* It will throw the following errors:
-* - No tasks found (404) => if no tasks are found
-
-* It will also throw any other errors that are not caught
-*/
-
-exports.getTasks = catchAsyncErrors(async (req, res, next) => {
-  const [rows, fields] = await connection.promise().query("SELECT * FROM task")
-  if (rows.length === 0) {
-    return next(new ErrorResponse("No tasks found", 404))
-  }
-  res.status(200).json({
-    success: true,
-    data: rows
-  })
-})
-
-/*
 * getTasksByApp => /controller/getTasksByApp/:App_Acronym
 * This function will get all tasks from the database that belongs to an application.
 * It will take in the following parameters:
@@ -830,8 +805,9 @@ exports.updateNotes = catchAsyncErrors(async (req, res, next) => {
   //Append the existing notes with the new notes
   req.body.Task_notes = req.body.Task_notes + "\n" + "by " + req.user.username + "\n\n" + existing_notes
 
-  //Update notes
-  const result = await connection.promise().execute("UPDATE task SET Task_notes = ? WHERE Task_id = ?", [req.body.Task_notes, Task_id])
+  //Update notes and task owner
+  const result = await connection.promise().execute("UPDATE task SET Task_notes = ?, Task_owner = ? WHERE Task_id = ?", [req.body.Task_notes, req.user.username, Task_id])
+
   if (result[0].affectedRows === 0) {
     return next(new ErrorResponse("Failed to update notes", 500))
   }
@@ -1102,7 +1078,7 @@ exports.rejectTask = catchAsyncErrors(async (req, res, next) => {
   //Get the Task_owner from the req.user.username
   const Task_owner = req.user.username
   let Added_Task_notes
-  if (req.body.Task_notes === undefined || null) {
+  if (req.body.Task_notes === undefined || req.body.Task_notes === null || req.body.Task_notes === "") {
     //append {Task_owner} moved {Task_name} from {Task_state} to {nextState} to the end of Task_note
     Added_Task_notes = Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState
   } else {
@@ -1182,7 +1158,7 @@ exports.returnTask = catchAsyncErrors(async (req, res, next) => {
   //Get the Task_owner from the req.user.username
   const Task_owner = req.user.username
   let Added_Task_notes
-  if (req.body.Task_notes === undefined || null) {
+  if (req.body.Task_notes === undefined || req.body.Task_notes === null || req.body.Task_notes === "") {
     //append {Task_owner} moved {Task_name} from {Task_state} to {nextState} to the end of Task_note
     Added_Task_notes = Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState
   } else {
@@ -1217,37 +1193,6 @@ const getRandomColor = () => {
 
   return color
 }
-
-/*
-* getPlan => /controller/getPlan/
-* This function will get the plan of a task from the database. As it is using a composite key of Plan_app_Acronym and Plan_MVP_name, we will need to get both of them from the req.body.
-* It will take in the following parameters:
-* - Plan_app_Acronym (string) => acronym of the application
-* - Plan_MVP_name (string) => name of the MVP
-
-* It will return the following:
-* - success (boolean) => true if successful, false if not
-* - data (object) => the plan object
-
-* It will throw the following errors:
-* - Plan does not exist (404) => if the plan does not exist
-
-* It will also throw any other errors that are not caught
-
-* This function is accessible only by users with the group "projectlead" in the application.
-*/
-exports.getPlan = catchAsyncErrors(async (req, res, next) => {
-  //Check if user is authorized to get plan
-  const { Plan_app_Acronym, Plan_MVP_name } = req.body
-  const [row, fields] = await connection.promise().query("SELECT * FROM plan WHERE Plan_app_Acronym = ? AND Plan_MVP_name = ?", [Plan_app_Acronym, Plan_MVP_name])
-  if (row.length === 0) {
-    return next(new ErrorResponse("Plan does not exist", 404))
-  }
-  res.status(200).json({
-    success: true,
-    data: row[0]
-  })
-})
 
 /*
 * getPlanByApp => /controller/getPlanByApp/:App_Acronym
