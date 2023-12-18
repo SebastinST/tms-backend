@@ -521,10 +521,10 @@ exports.createApp = async (req, res) => {
   }
 
   // Check App_Rnumber is not negative and not a float
-  if (App_Rnumber < 0 || App_Rnumber % 1 !== 0) {
+  if (App_Rnumber < 0 || App_Rnumber % 1 !== 0 || App_Rnumber > 999) {
     res.status(400).json({
       success : false,
-      message : 'Error: App Rnumber must not be negative or a float',
+      message : 'Error: App Rnumber is not valid',
     })
     return;
   }
