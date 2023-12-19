@@ -803,7 +803,7 @@ exports.updateNotes = catchAsyncErrors(async (req, res, next) => {
   //We should append the notes to the existing notes, so we need to get the existing notes first
   const existing_notes = row[0].Task_notes
   //Append the existing notes with the new notes
-  req.body.Task_notes = req.body.Task_notes + "\n" + "by " + req.user.username + "\n\n" + existing_notes
+  req.body.Task_notes = req.body.Task_notes + "\n" + "by " + req.user.username + " on " + new Date().toISOString().slice(0, 19).replace("T", " ") + "\n\n" + existing_notes
 
   //Update notes and task owner
   const result = await connection.promise().execute("UPDATE task SET Task_notes = ?, Task_owner = ? WHERE Task_id = ?", [req.body.Task_notes, req.user.username, Task_id])
@@ -955,10 +955,10 @@ exports.promoteTask = catchAsyncErrors(async (req, res, next) => {
   let Added_Task_notes
   if (req.body.Task_notes === undefined || req.body.Task_notes === null || req.body.Task_notes === "") {
     //append {Task_owner} moved {Task_name} from {Task_state} to {nextState} to the end of Task_note
-    Added_Task_notes = Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState
+    Added_Task_notes = Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState + " on " + new Date().toISOString().slice(0, 19).replace("T", " ")
   } else {
     //Get the Task_notes from the req.body.Task_notes and append {Task_owner} moved {Task_name} from {Task_state} to {nextState} to the end of Task_note
-    Added_Task_notes = Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState + "\n" + req.body.Task_notes
+    Added_Task_notes = Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState + " on " + new Date().toISOString().slice(0, 19).replace("T", " ") + "\n" + req.body.Task_notes
   }
 
   //Append Task_notes to the preexisting Task_notes, I want it to have two new lines between the old notes and the new notes
@@ -1080,10 +1080,10 @@ exports.rejectTask = catchAsyncErrors(async (req, res, next) => {
   let Added_Task_notes
   if (req.body.Task_notes === undefined || req.body.Task_notes === null || req.body.Task_notes === "") {
     //append {Task_owner} moved {Task_name} from {Task_state} to {nextState} to the end of Task_note
-    Added_Task_notes = Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState
+    Added_Task_notes = Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState + " on " + new Date().toISOString().slice(0, 19).replace("T", " ")
   } else {
     //Get the Task_notes from the req.body.Task_notes and append {Task_owner} moved {Task_name} from {Task_state} to {nextState} to the end of Task_note
-    Added_Task_notes = Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState + "\n" + req.body.Task_notes
+    Added_Task_notes = Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState + " on " + new Date().toISOString().slice(0, 19).replace("T", " ") + "\n" + req.body.Task_notes
   }
 
   //Append Task_notes to the preexisting Task_notes
@@ -1160,10 +1160,10 @@ exports.returnTask = catchAsyncErrors(async (req, res, next) => {
   let Added_Task_notes
   if (req.body.Task_notes === undefined || req.body.Task_notes === null || req.body.Task_notes === "") {
     //append {Task_owner} moved {Task_name} from {Task_state} to {nextState} to the end of Task_note
-    Added_Task_notes = Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState
+    Added_Task_notes = Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState + " on " + new Date().toISOString().slice(0, 19).replace("T", " ")
   } else {
     //Get the Task_notes from the req.body.Task_notes and append {Task_owner} moved {Task_name} from {Task_state} to {nextState} to the end of Task_note
-    Added_Task_notes = Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState + "\n" + req.body.Task_notes
+    Added_Task_notes = Task_owner + " moved " + row[0].Task_name + " from " + Task_state + " to " + nextState + " on " + new Date().toISOString().slice(0, 19).replace("T", " ") + "\n" + req.body.Task_notes
   }
 
   //Append Task_notes to the preexisting Task_notes
@@ -1432,11 +1432,11 @@ exports.assignTaskToPlan = catchAsyncErrors(async (req, res, next) => {
     Added_Task_notes = Task_owner + " assigned " + row2[0].Task_name + " to " + Plan_MVP_name
   } else {
     //Get the Task_notes from the req.body.Task_notes and append {Task_owner} assigned {Task_name} to {Plan_MVP_name} to the end of Task_note
-    Added_Task_notes = Task_owner + " assigned " + row2[0].Task_name + " to " + Plan_MVP_name + "\n\n" + req.body.Task_notes
+    Added_Task_notes = Task_owner + " assigned " + row2[0].Task_name + " to " + Plan_MVP_name + "\n" + req.body.Task_notes
   }
 
   //Append Task_notes to the preexisting Task_notes
-  const Task_notes = Added_Task_notes + "\n\n" + row2[0].Task_notes
+  const Task_notes = Added_Task_notes + "\n" + row2[0].Task_notes
 
   //Update the task including the task_owner
   const result = await connection.promise().execute("UPDATE task SET Task_notes = ?, Task_plan = ?, Task_owner = ? WHERE Task_id = ?", [Task_notes, Plan_MVP_name, Task_owner, Task_id])
