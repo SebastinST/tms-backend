@@ -1083,11 +1083,11 @@ exports.addTaskNotes = async (req, res) => {
   }
 
   // Update notes with new notes and audit trail
-  New_notes += New_notes +
+  New_notes += 
   `
-  \nNotes Added
-  \nUser: ${Task_owner}
-  \nDatetime: ${new Date().toLocaleString()}
+  \nNotes Added by User (${Task_owner}) at Datetime: ${new Date().toLocaleString()}
+  \n******************************************************************************************************************************************************************************
+  \n
   `
   + req.task.Task_notes;
 
@@ -1156,11 +1156,11 @@ exports.promoteTask = async (req, res) => {
   }
 
   // Update notes with new notes and audit trail
-  New_notes += New_notes +
+  New_notes += 
   `
-  \nPromoted to '${nextState}' state
-  \nUser: ${Task_owner}
-  \nDatetime: ${new Date().toLocaleString()}
+  \nPromoted to '${nextState}' state by User (${Task_owner}) at Datetime: ${new Date().toLocaleString()}
+  \n******************************************************************************************************************************************************************************
+  \n
   `
   + req.task.Task_notes;
 
@@ -1222,11 +1222,11 @@ exports.rejectTask = async (req, res) => {
   if (!Task_plan) {Task_plan = null};
 
   // Update notes with new notes and audit trail
-  New_notes += New_notes +
+  New_notes += 
   `
-  \nRejected to '${nextState}' state
-  \nUser: ${Task_owner}
-  \nDatetime: ${new Date().toLocaleString()}
+  \nRejected to '${nextState}' state by User (${Task_owner}) at Datetime: ${new Date().toLocaleString()}
+  \n******************************************************************************************************************************************************************************
+  \n
   `
   + req.task.Task_notes;
 
@@ -1278,11 +1278,11 @@ exports.returnTask = async (req, res) => {
   let nextState = "ToDo";
 
   // Update notes with new notes and audit trail
-  New_notes += New_notes +
+  New_notes += 
   `
-  \nReturned to '${nextState}' state
-  \nUser: ${Task_owner}
-  \nDatetime: ${new Date().toLocaleString()}
+  \nReturned to '${nextState}' state by User (${Task_owner}) at Datetime: ${new Date().toLocaleString()}
+  \n******************************************************************************************************************************************************************************
+  \n
   `
   + req.task.Task_notes;
 
@@ -1337,11 +1337,11 @@ exports.assignTaskToPlan = async (req, res) => {
   } 
 
   // Update notes with new notes and audit trail
-  New_notes += New_notes +
+  New_notes +=
   `
-  \n${Task_plan ? "Changed Plan to " + Task_plan : "Removed Plan"}
-  \nUser: ${Task_owner}
-  \nDatetime: ${new Date().toLocaleString()}
+  \n${Task_plan ? "Changed Plan to " + Task_plan : "Removed Plan"} by User (${Task_owner}) at Datetime: ${new Date().toLocaleString()}
+  \n******************************************************************************************************************************************************************************
+  \n
   `
   + req.task.Task_notes;
 
@@ -1426,7 +1426,12 @@ async function sendEmailToProjectLead(req) {
     from: `${process.env.SMTP_FROM_NAME} <${process.env.SMTP_FROM_EMAIL}>`,
     to: emails, // Replace with the actual project lead's email
     subject: `Task Promotion Notification`,
-    text: `The task "${req.task.task_name}" has been promoted to "Done" by ${req.user.username}.`
+    text: 
+    `The following task has been promoted to "Done" by ${req.user.username}:
+    \nTask Name: ${req.task.Task_name}
+    \nTask ID: ${req.task.Task_id}
+    \nApp: ${req.task.Task_app_Acronym}
+    `
   }
 
   // Send the email
