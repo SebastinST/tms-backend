@@ -950,13 +950,12 @@ exports.createTask = async (req, res) => {
   const Task_state = "Open";
 
   // Set initial notes for task as audit
-  const currentDateTime = new Date().toLocaleString();
   const Task_notes = 
-    `\n
-    \nCreated in ${Task_state} state
-    \nUser: ${username}
-    \nDatetime: ${currentDateTime}
-    \n`
+  `
+  \nCreated in 'Open' state by User (${username}) at Datetime: ${new Date().toLocaleString()}
+  \n******************************************************************************************************************************************************************************
+  \n
+  `
   
   // Set task creator and owner as current username
   const Task_creator = username;
